@@ -1,8 +1,8 @@
 package stat
 
 import (
+	"github.com/blackbeans/kiteq-common/store"
 	"github.com/blackbeans/turbo"
-	"kiteq/store"
 )
 
 type FlowStat struct {
