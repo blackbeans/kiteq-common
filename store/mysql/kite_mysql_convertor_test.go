@@ -1,9 +1,9 @@
 package mysql
 
 import (
+	"github.com/blackbeans/kiteq-common/protocol"
+	"github.com/blackbeans/kiteq-common/store"
 	"github.com/golang/protobuf/proto"
-	"kiteq/protocol"
-	"kiteq/store"
 	"os"
 	"reflect"
 	"testing"

@@ -2,9 +2,9 @@ package file
 
 import (
 	"fmt"
+	"github.com/blackbeans/kiteq-common/protocol"
+	"github.com/blackbeans/kiteq-common/store"
 	"github.com/golang/protobuf/proto"
-	"kiteq/protocol"
-	"kiteq/store"
 	"log"
 	"testing"
 	"time"

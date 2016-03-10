@@ -3,7 +3,7 @@ package store
 import (
 	"fmt"
 	"github.com/blackbeans/go-uuid"
-	"kiteq/protocol"
+	"github.com/blackbeans/kiteq-common/protocol"
 )
 
 //生成messageId uuid

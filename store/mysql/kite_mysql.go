@@ -2,9 +2,9 @@ package mysql
 
 import (
 	"fmt"
+	"github.com/blackbeans/kiteq-common/protocol"
+	. "github.com/blackbeans/kiteq-common/store"
 	log "github.com/blackbeans/log4go"
-	"kiteq/protocol"
-	. "kiteq/store"
 	"sort"
 	"strings"
 	"sync"
