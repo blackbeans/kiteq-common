@@ -125,7 +125,8 @@ func (self *ZKManager) listenEvent() {
 
 		switch change.Type {
 		case zk.EventSession:
-			if change.State == zk.StateExpired {
+			if change.State == zk.StateExpired ||
+				change.State == zk.StateDisconnected {
 				log.WarnLog("kite_bind", "ZKManager|OnSessionExpired!|Reconnect Zk ....")
 				//阻塞等待重连任务成功
 				succ := <-self.reconnect()
