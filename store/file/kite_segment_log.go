@@ -102,7 +102,7 @@ func (self *SegmentLog) Replay(do func(l *oplog)) {
 
 		if int(length) > cap(tmp) {
 			grow := make([]byte, int(length)-cap(tmp))
-			tmp = append(tmp, grow...)
+			tmp = append(tmp[0:cap(tmp)], grow...)
 		}
 
 		err = binary.Read(self.br, binary.BigEndian, tmp[:int(length)-4])

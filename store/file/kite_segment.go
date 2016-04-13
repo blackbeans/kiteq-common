@@ -193,12 +193,12 @@ func (self *Segment) loadCheck() {
 
 		//read data
 		l := length - CHUNK_HEADER
+
 		if int(l) > cap(buff[16:]) {
 			gl := int(l) - cap(buff[16:])
 			grow := make([]byte, gl)
-			buff = append(buff, grow...)
+			buff = append(buff[0:cap(buff)], grow...)
 		}
-
 		dl, err := io.ReadFull(self.br, buff[16:length])
 		if nil != err || dl < int(l) {
 			log.ErrorLog("kite_store", "Segment|Load Segment|Read Data|FAIL|%s|%s|%d/%d", err, self.name, l, dl)
@@ -434,9 +434,13 @@ func (self *Segment) Close() error {
 
 }
 
-//----------------------------------------------------
-//|length 4byte|checksum 4byte|id 8byte| data variant|
-//----------------------------------------------------
+//
+//-------------------------------------------------------------------------
+//|length 4byte |checksum 4byte|id 8byte| data variant|
+//-------------------------------------------------------------------------
+//其中length的4个字节包括:
+// length(4B)+checksum(4B)+id(8B)+len(data)
+//总长度
 //存储块
 type Chunk struct {
 	offset   int64

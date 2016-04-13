@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+func TestCorruptStore(t *testing.T) {
+	fs := NewKiteFileStore("./kiteq-bak", 5000000, 1*time.Second)
+	fs.Start()
+
+	fs.Stop()
+}
+
 func TestFileStoreQuery(t *testing.T) {
 	cleanSnapshot("./snapshot/")
 	fs := NewKiteFileStore(".", 5000000, 1*time.Second)
