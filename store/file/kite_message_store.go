@@ -267,6 +267,7 @@ func (self *MessageStore) recoverSnapshot() {
 	//current segmentid
 	if len(self.segments) > 0 {
 
+		removeCount:= 0
 		//replay log
 		for i, s := range self.segments {
 			err := s.Open(self.replay)
@@ -274,6 +275,12 @@ func (self *MessageStore) recoverSnapshot() {
 				log.ErrorLog("kite_store", "MessageStore|recoverSnapshot|Fail|%s", err, s.slog.path)
 				panic(err)
 			}
+
+			total,normal,del,expired:=s.stat()
+			if normal<=0 || total==(del+expired){
+				self.remove(s)
+				removeCount++
+			}else{
 
 			//last segments
 			if i == len(self.segments)-1 {
@@ -286,7 +293,12 @@ func (self *MessageStore) recoverSnapshot() {
 					self.chunkId = s.chunks[len(s.chunks)-1].id
 				}
 			}
+		}
 			log.DebugLog("kite_store", "MessageStore|recoverSnapshot|%s", s.name)
+		}
+
+		if removeCount == len(self.segments){
+			self.segments=self.segments[:0]
 		}
 	}
 }

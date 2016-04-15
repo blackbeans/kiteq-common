@@ -7,6 +7,8 @@ import (
 	"os"
 	"testing"
 	"time"
+	"strings"
+	"path/filepath"
 )
 
 func traverse(oplog *oplog) {
@@ -78,6 +80,90 @@ func cleanSnapshot(path string) {
 		log.Printf("Remove|SUCC|%s\n", path)
 	}
 
+}
+
+
+//test delete
+func TestDeleteAndStart(t *testing.T) {
+	cleanSnapshot("./snapshot/")
+	snapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot.Start()
+	for j := 0; j < 1000; j++ {
+		d := []byte(fmt.Sprintln(j))
+		cmd := NewCommand(-1, fmt.Sprintln(j), d, nil)
+		<-snapshot.Append(cmd)
+		// log.Printf("TestDelete|Append|%d|...", j)
+	}
+	log.Printf("TestDeleteAndStart|Delete|Start...")
+
+	if snapshot.chunkId != 999{
+		t.Fail()
+	}
+
+	i := 0
+	last := 0
+	run := true
+	go func() {
+		for run {
+			log.Printf("tps:%d", (i - last))
+			last = i
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	for j := 0; j < 1000; j++ {
+		id := int64(j)
+		var str string
+		data, err := snapshot.Query(id)
+		if nil != err {
+			log.Printf("TestDeleteAndStart|Query|%s\n", err)
+		}
+
+		str = string(data)
+		if str != fmt.Sprintln(j) {
+			log.Printf("TestDeleteAndStart|Query|FAIL|%s", str)
+			t.Fail()
+			continue
+		}
+
+		c := NewCommand(id, "", nil, nil)
+		snapshot.Delete(c)
+		i++
+		_, err = snapshot.Query(id)
+		if nil == err {
+			t.Fail()
+			log.Printf("TestDeleteAndStart|DELETE-QUERY|FAIL|%s", str)
+			continue
+		}
+	}
+	run = false
+	snapshot.Destory()
+
+	log.Printf("TestDeleteAndStart|Start...")
+	snapshot = NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot.Start()
+
+	fcount:= 0
+	//fetch all Segment
+	filepath.Walk("./snapshot/", func(path string, f os.FileInfo, err error) error {
+		// log.Info("MessageStore|Walk|%s", path)
+		if nil != f && !f.IsDir() && 
+		strings.HasSuffix(f.Name(),".data") && f.Size()==0 {
+			fmt.Println(f.Name())
+			fcount++
+		}
+		return nil
+	})
+
+	log.Printf("TestDeleteAndStart|Start|Lstat|%d",fcount )
+	if fcount !=1{
+		t.Fail()
+	}
+	log.Printf("TestDeleteAndStart|Start|ChunkId|%d",snapshot.chunkId)
+	if snapshot.chunkId != -1{
+		t.Fail()
+	}
+	snapshot.Destory()
 }
 
 //test delete
