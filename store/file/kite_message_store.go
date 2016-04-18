@@ -275,13 +275,12 @@ func (self *MessageStore) recoverSnapshot() {
 				log.ErrorLog("kite_store", "MessageStore|recoverSnapshot|Fail|%s", err, s.slog.path)
 				panic(err)
 			}
-
+			
 			total,normal,del,expired:=s.stat()
 			if normal<=0 || total==(del+expired){
 				self.remove(s)
 				removeCount++
 			}else{
-
 			//last segments
 			if i == len(self.segments)-1 {
 				if nil != err {
