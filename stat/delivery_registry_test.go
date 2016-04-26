@@ -1,7 +1,7 @@
 package stat
 
 import (
-	"kiteq/store"
+	"github.com/blackbeans/kiteq-common/store"
 	"testing"
 	"time"
 )
