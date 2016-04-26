@@ -85,7 +85,7 @@ func TestSubscribeBindings(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 
-	tradeBind := exchanger.FindBinds("trade", "trade-succ-200", filter)
+	tradeBind, _ := exchanger.FindBinds("trade", "trade-succ-200", filter)
 	t.Logf("trade trade-succ-200|%t\n", tradeBind)
 	if len(tradeBind) != 1 {
 		t.Fail()
@@ -97,7 +97,7 @@ func TestSubscribeBindings(t *testing.T) {
 		return
 	}
 
-	feedBindU := exchanger.FindBinds("feed", "feed-geo-update", filter)
+	feedBindU, _ := exchanger.FindBinds("feed", "feed-geo-update", filter)
 
 	if len(feedBindU) != 1 {
 		t.Fail()
@@ -111,7 +111,7 @@ func TestSubscribeBindings(t *testing.T) {
 		return
 	}
 
-	feedBindD := exchanger.FindBinds("feed", "feed-geo-delete", filter)
+	feedBindD, _ := exchanger.FindBinds("feed", "feed-geo-delete", filter)
 	if len(feedBindD) != 1 {
 		t.Fail()
 		return
@@ -135,7 +135,7 @@ func TestSubscribeBindings(t *testing.T) {
 	t.Logf("trade trade-succ-200|delete|s-trade-001-bind|%t\n", nodes)
 	time.Sleep(5 * time.Second)
 
-	tradeBind = exchanger.FindBinds("trade", "trade-succ-200", filter)
+	tradeBind, _ = exchanger.FindBinds("trade", "trade-succ-200", filter)
 	t.Logf("trade trade-succ-200|no binding |%t\n", tradeBind)
 	if len(tradeBind) != 0 {
 		t.Fail()
