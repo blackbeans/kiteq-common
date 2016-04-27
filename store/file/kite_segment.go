@@ -147,6 +147,14 @@ func (self *Segment) stat() (total, normal, del, expired int32) {
 	return
 }
 
+// compact todo
+func (self *Segment) compact() {
+	//scan log
+	self.slog.RLock()
+
+	return
+}
+
 //load check
 func (self *Segment) loadCheck() {
 

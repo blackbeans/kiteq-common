@@ -60,10 +60,10 @@ func NewKiteFileStore(dir string, maxcap int, checkPeriod time.Duration) *KiteFi
 		oplogs:   oplogs,
 		locks:    locks,
 		maxcap:   maxcap / CONCURRENT_LEVEL,
-		delChan:  make(chan *command, 1000)}
+		delChan:  make(chan *command, 8000)}
 
 	kms.snapshot =
-		NewMessageStore(dir+"/snapshot/", 300, 2, checkPeriod, func(ol *oplog) {
+		NewMessageStore(dir+"/snapshot/", 300, 8, checkPeriod, func(ol *oplog) {
 			kms.replay(ol)
 		})
 	return kms
@@ -403,20 +403,26 @@ func (self *KiteFileStore) UpdateEntity(entity *MessageEntity) bool {
 }
 func (self *KiteFileStore) Delete(messageId string) bool {
 
-	lock, link, el := self.hash(messageId)
-	lock.Lock()
-	defer lock.Unlock()
-	e, ok := el[messageId]
-	if !ok {
+	v := func() *opBody {
+		lock, link, el := self.hash(messageId)
+		lock.Lock()
+		defer lock.Unlock()
+		e, ok := el[messageId]
+		if !ok {
+			return nil
+		}
+
+		//delete log
+		delete(el, messageId)
+		link.Remove(e)
+		//delete
+		v := e.Value.(*opBody)
+		return v
+	}()
+
+	if nil == v {
 		return true
 	}
-
-	//delete log
-	delete(el, messageId)
-	link.Remove(e)
-
-	//delete
-	v := e.Value.(*opBody)
 
 	//wait save succ
 	self.waitSaveDone(v)
@@ -436,6 +442,7 @@ func (self *KiteFileStore) Delete(messageId string) bool {
 	} else {
 		return false
 	}
+	return true
 	// log.Info("KiteFileStore|innerDelete|%s\n", messageId)
 
 }
@@ -560,11 +567,23 @@ func (self *KiteFileStore) PageQueryEntity(hashKey string, kiteServer string, ne
 		self.Delete(mid)
 	}
 
+	hasMore := false
 	if len(pe) > limit {
-		return true, pe[:limit]
-	} else {
-		return false, pe
+		pe = pe[:limit]
+		hasMore = true
 	}
-	return false, nil
+
+	tmp := pe[:0]
+	//query messageEntity
+	for _, e := range pe {
+		entity := self.Query(e.MessageId)
+		if nil != entity {
+			tmp = append(tmp, entity)
+		} else {
+
+		}
+	}
+
+	return hasMore, tmp
 
 }

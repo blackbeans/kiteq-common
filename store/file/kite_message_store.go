@@ -121,13 +121,13 @@ func (self *MessageStore) evict() {
 					//try open
 					func() {
 						s.RLock()
-						defer s.RUnlock()
+
 						total, normal, del, expired := s.stat()
 						stat += fmt.Sprintf("|%s\t|%d\t|%d\t|%d\t|%d\t|\n", s.name, total, normal, del, expired)
-
 						if normal <= 0 {
 							removeChan <- s
 						}
+						s.RUnlock()
 					}()
 				}
 
@@ -267,7 +267,7 @@ func (self *MessageStore) recoverSnapshot() {
 	//current segmentid
 	if len(self.segments) > 0 {
 
-		removeCount:= 0
+		removeCount := 0
 		//replay log
 		for i, s := range self.segments {
 			err := s.Open(self.replay)
@@ -275,29 +275,29 @@ func (self *MessageStore) recoverSnapshot() {
 				log.ErrorLog("kite_store", "MessageStore|recoverSnapshot|Fail|%s", err, s.slog.path)
 				panic(err)
 			}
-			
-			total,normal,del,expired:=s.stat()
-			if normal<=0 || total==(del+expired){
+
+			total, normal, del, expired := s.stat()
+			if normal <= 0 || total == (del+expired) {
 				self.remove(s)
 				removeCount++
-			}else{
-			//last segments
-			if i == len(self.segments)-1 {
-				if nil != err {
-					panic("MessageStore|Load Last Segment|FAIL|" + err.Error())
-				}
+			} else {
+				//last segments
+				if i == len(self.segments)-1 {
+					if nil != err {
+						panic("MessageStore|Load Last Segment|FAIL|" + err.Error())
+					}
 
-				//set snapshost status
-				if len(s.chunks) > 0 {
-					self.chunkId = s.chunks[len(s.chunks)-1].id
+					//set snapshost status
+					if len(s.chunks) > 0 {
+						self.chunkId = s.chunks[len(s.chunks)-1].id
+					}
 				}
 			}
-		}
 			log.DebugLog("kite_store", "MessageStore|recoverSnapshot|%s", s.name)
 		}
 
-		if removeCount == len(self.segments){
-			self.segments=self.segments[:0]
+		if removeCount == len(self.segments) {
+			self.segments = self.segments[:0]
 		}
 	}
 }
@@ -344,57 +344,55 @@ func (self *MessageStore) indexSegment(cid int64) *Segment {
 
 	// not exist In cache
 	if nil == curr {
-		self.Lock()
-		defer self.Unlock()
-		//double check
-		for e := self.segmentCache.Front(); nil != e; e = e.Next() {
-			s := e.Value.(*Segment)
-			if s.sid <= cid && cid < s.sid+int64(len(s.chunks)) {
-				curr = s
-				break
+		curr = func() *Segment {
+			self.RLock()
+			defer self.RUnlock()
+			//double check
+			for e := self.segmentCache.Front(); nil != e; e = e.Next() {
+				s := e.Value.(*Segment)
+				if s.sid <= cid && cid < s.sid+int64(len(s.chunks)) {
+					curr = s
+					break
+				}
 			}
+
+			idx := sort.Search(len(self.segments), func(i int) bool {
+				s := self.segments[i]
+				return s.sid >= cid
+			})
+
+			if idx >= len(self.segments) || self.segments[idx].sid != cid {
+				idx = idx - 1
+			}
+
+			if idx <= 0 {
+				idx = 0
+			}
+
+			if len(self.segments) > 0 && idx < len(self.segments) {
+				return self.segments[idx]
+			}
+			return nil
+		}()
+
+		if nil != curr {
+			self.Lock()
+			//push to cache
+			self.segmentCache.PushFront(curr)
+			//remove cache
+			if self.segmentCache.Len() >= self.segcacheSize {
+				e := self.segmentCache.Back()
+				v := self.segmentCache.Remove(e)
+				//truncate data
+				v.(*Segment).Truncate()
+			}
+			self.Unlock()
 		}
 
-		idx := sort.Search(len(self.segments), func(i int) bool {
-			s := self.segments[i]
-			return s.sid >= cid
-		})
-
-		if idx >= len(self.segments) || self.segments[idx].sid != cid {
-			idx = idx - 1
-		}
-
-		if idx <= 0 {
-			idx = 0
-		}
-
-		if len(self.segments) > 0 {
-			//load segment
-			curr = self.loadSegment(idx)
-		}
 		// log.Debug("kite_store","MessageStore|indexSegment|%d", curr.path)
 
 	}
 	return curr
-}
-
-//load segment
-func (self *MessageStore) loadSegment(idx int) *Segment {
-
-	// load n segments
-	s := self.segments[idx]
-	//remove
-	if self.segmentCache.Len() >= self.segcacheSize {
-		e := self.segmentCache.Back()
-		v := self.segmentCache.Remove(e)
-		//truncate data
-		v.(*Segment).Truncate()
-	}
-
-	//push to cache
-	self.segmentCache.PushFront(s)
-	// log.InfoLog("kite_store","MessageStore|loadSegment|SUCC|%s|cache-Len:%d", s.name, self.segmentCache.Len())
-	return s
 }
 
 //append log
