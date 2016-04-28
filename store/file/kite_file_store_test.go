@@ -244,8 +244,8 @@ func TestFileStoreInit(t *testing.T) {
 	fs.Start()
 
 	for _, v := range fs.oplogs {
-		for _, ol := range v {
-			ob := ol.Value.(*opBody)
+		for _, ob := range v {
+
 			log.Printf("TestFileStoreInit|Check|%d|%s", ob.Id, ob.MessageId)
 		}
 	}

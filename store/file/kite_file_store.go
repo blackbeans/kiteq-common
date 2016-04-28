@@ -63,7 +63,7 @@ func NewKiteFileStore(dir string, maxcap int, checkPeriod time.Duration) *KiteFi
 		delChan:  make(chan *command, 8000)}
 
 	kms.snapshot =
-		NewMessageStore(dir+"/snapshot/", 300, 8, checkPeriod, func(ol *oplog) {
+		NewMessageStore(dir+"/snapshot/", 300, checkPeriod, func(ol *oplog) {
 			kms.replay(ol)
 		})
 	return kms

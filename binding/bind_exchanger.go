@@ -47,6 +47,24 @@ func NewBindExchanger(zkhost string,
 	return ex
 }
 
+//topics limiter
+func (self *BindExchanger) Topic2Limiters() map[string]map[string][]int {
+	wrapper := make(map[string]map[string][]int, 2)
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+	for t, m := range self.limiters {
+		wrapper[t] = make(map[string][]int, 2)
+		for g, l := range m {
+			val := make([]int, 0, 2)
+			acquried, total := l.LimiterInfo()
+			val = append(val, acquried)
+			val = append(val, total)
+			wrapper[t][g] = val
+		}
+	}
+	return wrapper
+}
+
 //当前topic到Groups的对应关系
 func (self *BindExchanger) Topic2Groups() map[string][]string {
 	binds := make(map[string][]string, 10)

@@ -32,7 +32,7 @@ func (self ChunkFlag) String() string {
 var SEGMENT_LOG_SPLIT = []byte{'\r', '\n'}
 
 const (
-	MAX_SEGMENT_SIZE    = 64 * 1024 * 1024 //最大的分段大仙
+	MAX_SEGMENT_SIZE    = 128 * 1024 * 1024 //最大的分段大仙
 	SEGMENT_PREFIX      = "segment"
 	SEGMENT_LOG_SUFFIX  = ".log"
 	SEGMENT_DATA_SUFFIX = ".data"
@@ -117,7 +117,10 @@ func (self *Segment) Open(do func(ol *oplog)) error {
 		// self.wf.Seek(self.offset, 0)
 		self.bw = bufio.NewWriter(wf)
 		//op segment log
-		self.slog.Open()
+		err = self.slog.Open()
+		if nil != err {
+			return err
+		}
 		//recover segment
 		self.recover(do)
 		total, n, d, e := self.stat()
@@ -150,7 +153,6 @@ func (self *Segment) stat() (total, normal, del, expired int32) {
 // compact todo
 func (self *Segment) compact() {
 	//scan log
-	self.slog.RLock()
 
 	return
 }
