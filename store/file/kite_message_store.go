@@ -91,10 +91,9 @@ func (self *MessageStore) evict() {
 				//check 0...n-1 segment stat
 				for _, s := range self.segments[:len(self.segments)-1] {
 					func() {
-						//recover and sync
-						s.Lock()
-						defer s.Unlock()
-						s.recover(func(ol *oplog) {})
+						//sync
+						s.RLock()
+						defer s.RUnlock()
 						total, normal, del, expired := s.stat()
 						stat += fmt.Sprintf("|%s\t|%d\t|%d\t|%d\t|%d\t|\n", s.name, total, normal, del, expired)
 						if normal <= 0 {
@@ -117,7 +116,6 @@ func (self *MessageStore) evict() {
 		}
 		remove = remove[:0]
 	}
-
 }
 
 //remove segment
@@ -502,7 +500,7 @@ func (self *MessageStore) createSegment(nextStart int64) (*Segment, error) {
 }
 
 func (self *MessageStore) sync() {
-	MAX_BYTES := 8 * 1024 // 8K
+	MAX_BYTES := 64 * 1024 // 64K
 	batch := make([]*command, 0, self.batchSize)
 	batchLog := make([]*oplog, 0, self.batchSize)
 	chunks := make(Chunks, 0, self.batchSize)
@@ -531,6 +529,7 @@ func (self *MessageStore) sync() {
 			cmd.id = id
 			cmd.seg = s
 			c := cmd
+
 			//init curr segment
 			if nil == curr {
 				curr = cmd.seg
@@ -638,6 +637,7 @@ func flush(s *Segment, chunks Chunks, logs []*oplog, cmds []*command) {
 			c.idchan <- c.id
 			close(c.idchan)
 		}
+
 	}
 }
 

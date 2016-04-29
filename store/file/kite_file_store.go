@@ -23,7 +23,6 @@ type opBody struct {
 	NextDeliverTime int64      `json:"ndt"`
 	DeliverCount    int32      `json:"dc"`
 	saveDone        chan int64 //save done
-	sync.WaitGroup             //wait set Id finish
 }
 
 const (
@@ -37,7 +36,7 @@ type KiteFileStore struct {
 	maxcap     int
 	currentSid int64 // 当前segment的id
 	snapshot   *MessageStore
-	delChan    chan *command
+	delChan    []chan *command
 	sync.RWMutex
 	sync.WaitGroup
 	running bool
@@ -48,11 +47,14 @@ func NewKiteFileStore(dir string, maxcap int, checkPeriod time.Duration) *KiteFi
 	datalink := make([]*list.List, 0, CONCURRENT_LEVEL)
 	oplogs := make([]map[string]*list.Element, 0, CONCURRENT_LEVEL)
 	locks := make([]*sync.RWMutex, 0, CONCURRENT_LEVEL)
+	delChan := make([]chan *command, 0, CONCURRENT_LEVEL)
 	for i := 0; i < CONCURRENT_LEVEL; i++ {
 		splitMap := make(map[string] /*messageId*/ *list.Element, maxcap/CONCURRENT_LEVEL)
 		locks = append(locks, &sync.RWMutex{})
 		oplogs = append(oplogs, splitMap)
 		datalink = append(datalink, list.New())
+		ch := make(chan *command, 8000)
+		delChan = append(delChan, ch)
 	}
 
 	kms := &KiteFileStore{
@@ -60,7 +62,7 @@ func NewKiteFileStore(dir string, maxcap int, checkPeriod time.Duration) *KiteFi
 		oplogs:   oplogs,
 		locks:    locks,
 		maxcap:   maxcap / CONCURRENT_LEVEL,
-		delChan:  make(chan *command, 8000)}
+		delChan:  delChan}
 
 	kms.snapshot =
 		NewMessageStore(dir+"/snapshot/", 300, checkPeriod, func(ol *oplog) {
@@ -83,7 +85,7 @@ func (self *KiteFileStore) replay(ol *oplog) {
 	ob := &body
 	ob.Id = ol.ChunkId
 
-	l, link, tol := self.hash(ob.MessageId)
+	l, link, tol, _ := self.hash(ob.MessageId)
 	// log.Debug("KiteFileStore|replay|%s|%s", ob, ol.Op)
 	//如果是更新或者创建，则直接反序列化
 	if ol.Op == OP_U || ol.Op == OP_C {
@@ -119,11 +121,13 @@ func (self *KiteFileStore) Start() {
 	self.Lock()
 	defer self.Unlock()
 	if !self.running {
-		self.Add(1)
+		self.Add(CONCURRENT_LEVEL)
 		self.running = true
 		//start snapshost
 		self.snapshot.Start()
-		go self.delSync()
+		for i, ch := range self.delChan {
+			go self.delSync(fmt.Sprintf("%x", i), ch)
+		}
 		log.InfoLog("kite_store", "KiteFileStore|Start...\t%s", self.Monitor())
 	}
 
@@ -134,9 +138,12 @@ func (self *KiteFileStore) Stop() {
 	defer self.Unlock()
 	if self.running {
 		self.running = false
-		close(self.delChan)
 		//wait delete finish
 		self.Wait()
+		for _, ch := range self.delChan {
+			close(ch)
+		}
+
 		self.snapshot.Destory()
 		log.InfoLog("kite_store", "KiteFileStore|Stop...")
 	}
@@ -156,7 +163,7 @@ func (self *KiteFileStore) Length() map[string]int {
 	}()
 	stat := make(map[string]int, 10)
 	for i := 0; i < CONCURRENT_LEVEL; i++ {
-		_, link, _ := self.hash(fmt.Sprintf("%x", i))
+		_, link, _, _ := self.hash(fmt.Sprintf("%x", i))
 		for e := link.Back(); nil != e; e = e.Prev() {
 			body := e.Value.(*opBody)
 			v, ok := stat[body.Topic]
@@ -178,7 +185,7 @@ func (self *KiteFileStore) AsyncDelete(messageId string) bool      { return self
 func (self *KiteFileStore) AsyncCommit(messageId string) bool      { return self.Commit(messageId) }
 
 //hash get elelment
-func (self *KiteFileStore) hash(messageid string) (l *sync.RWMutex, link *list.List, ol map[string]*list.Element) {
+func (self *KiteFileStore) hash(messageid string) (l *sync.RWMutex, link *list.List, ol map[string]*list.Element, delCh chan *command) {
 	id := string(messageid[len(messageid)-1])
 	i, err := strconv.ParseInt(id, CONCURRENT_LEVEL, 8)
 	hashId := int(i)
@@ -195,6 +202,7 @@ func (self *KiteFileStore) hash(messageid string) (l *sync.RWMutex, link *list.L
 	l = self.locks[hashId]
 	link = self.datalink[hashId]
 	ol = self.oplogs[hashId]
+	delCh = self.delChan[hashId]
 	return
 }
 
@@ -211,20 +219,18 @@ func (self *KiteFileStore) waitSaveDone(ob *opBody) {
 				//save succ
 				ob.Id = id
 			}
-			ob.Done()
+
 		} else {
 			//channel closed
 		}
 	} else {
 		//save succ
 	}
-	//wait
-	ob.Wait()
 }
 
 func (self *KiteFileStore) Query(messageId string) *MessageEntity {
 
-	lock, _, el := self.hash(messageId)
+	lock, _, el, _ := self.hash(messageId)
 	lock.RLock()
 	defer lock.RUnlock()
 	e, ok := el[messageId]
@@ -277,7 +283,7 @@ func (self *KiteFileStore) Query(messageId string) *MessageEntity {
 
 func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 
-	lock, link, ol := self.hash(entity.MessageId)
+	lock, link, ol, _ := self.hash(entity.MessageId)
 	if len(ol) >= self.maxcap {
 		//overflow
 		return false
@@ -311,7 +317,6 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 		//append oplog into file
 		idchan := self.snapshot.Append(cmd)
 		ob.saveDone = idchan
-		ob.Add(1)
 
 		//get lock
 		lock.Lock()
@@ -326,7 +331,7 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 func (self *KiteFileStore) Commit(messageId string) bool {
 
 	cmd := func() *command {
-		lock, _, ol := self.hash(messageId)
+		lock, _, ol, _ := self.hash(messageId)
 		lock.Lock()
 		defer lock.Unlock()
 		e, ok := ol[messageId]
@@ -364,7 +369,7 @@ func (self *KiteFileStore) Rollback(messageId string) bool {
 }
 func (self *KiteFileStore) UpdateEntity(entity *MessageEntity) bool {
 	cmd := func() *command {
-		lock, link, el := self.hash(entity.MessageId)
+		lock, link, el, _ := self.hash(entity.MessageId)
 		lock.Lock()
 		defer lock.Unlock()
 		e, ok := el[entity.MessageId]
@@ -403,21 +408,18 @@ func (self *KiteFileStore) UpdateEntity(entity *MessageEntity) bool {
 }
 func (self *KiteFileStore) Delete(messageId string) bool {
 
-	v := func() *opBody {
-		lock, link, el := self.hash(messageId)
-		lock.Lock()
-		defer lock.Unlock()
+	v, ch := func() (*opBody, chan *command) {
+		lock, _, el, ch := self.hash(messageId)
+		lock.RLock()
+		defer lock.RUnlock()
 		e, ok := el[messageId]
 		if !ok {
-			return nil
+			return nil, nil
 		}
 
-		//delete log
-		delete(el, messageId)
-		link.Remove(e)
 		//delete
 		v := e.Value.(*opBody)
-		return v
+		return v, ch
 	}()
 
 	if nil == v {
@@ -437,7 +439,7 @@ func (self *KiteFileStore) Delete(messageId string) bool {
 	}
 	cmd := NewCommand(v.Id, messageId, nil, obd)
 	if self.running {
-		self.delChan <- cmd
+		ch <- cmd
 		return true
 	} else {
 		return false
@@ -447,32 +449,67 @@ func (self *KiteFileStore) Delete(messageId string) bool {
 
 }
 
-func (self *KiteFileStore) delSync() {
+func (self *KiteFileStore) delSync(hashKey string, ch chan *command) {
 
-	for self.running {
-
-		//no batch / wait for data
-		c := <-self.delChan
-		if nil != c {
+	delFunc := func(cmds []*command) {
+		lock, link, el, _ := self.hash(hashKey)
+		lock.Lock()
+		defer lock.Unlock()
+		for _, c := range cmds {
+			e, ok := el[c.logicId]
+			if !ok {
+				continue
+			}
+			//delete log
+			delete(el, c.logicId)
+			link.Remove(e)
 			self.snapshot.Delete(c)
 		}
-
 	}
 
-	// need flush left data
-outter:
-	for {
+	ticker := time.NewTicker(1 * time.Second)
+	cmds := make([]*command, 0, 100)
+	flush := false
+	for self.running {
 		select {
-		case c := <-self.delChan:
+		//no batch / wait for data
+		case c := <-ch:
 			if nil != c {
-				self.snapshot.Delete(c)
-			} else {
-				//channel close
-				break outter
+				cmds = append(cmds, c)
+				if len(cmds) >= 100 {
+					flush = true
+				}
 			}
+		case <-ticker.C:
+			flush = (len(cmds) > 0)
+		}
 
+		//flush
+		if flush {
+			delFunc(cmds)
+			go func() {
+				for _, c := range cmds {
+					self.snapshot.Delete(c)
+				}
+			}()
+			cmds = cmds[:0]
+		}
+	}
+
+	finished := false
+	// need flush left data
+	for !finished {
+		select {
+		case c := <-ch:
+			if nil != c {
+				cmds = append(cmds, c)
+			}
 		default:
-			break outter
+			finished = true
+		}
+		//last flush
+		if finished && len(cmds) > 0 {
+			delFunc(cmds)
 		}
 	}
 	self.Done()
@@ -482,7 +519,7 @@ outter:
 func (self *KiteFileStore) Expired(messageId string) bool {
 
 	cmd := func() *command {
-		lock, link, el := self.hash(messageId)
+		lock, link, el, _ := self.hash(messageId)
 		lock.Lock()
 		defer lock.Unlock()
 		e, ok := el[messageId]
@@ -519,7 +556,7 @@ func (self *KiteFileStore) PageQueryEntity(hashKey string, kiteServer string, ne
 
 	var pe []*MessageEntity
 	var del []string
-	lock, link, _ := self.hash(hashKey)
+	lock, link, _, _ := self.hash(hashKey)
 	lock.RLock()
 	i := 0
 	for e := link.Front(); nil != e; e = e.Next() {

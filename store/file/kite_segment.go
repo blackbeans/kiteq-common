@@ -12,6 +12,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type ChunkFlag uint8
@@ -47,28 +48,32 @@ const (
 
 //消息文件
 type Segment struct {
-	path     string
-	name     string //basename_0000000000
-	rf       *os.File
-	wf       *os.File
-	bw       *bufio.Writer //
-	br       *bufio.Reader // data buffer
-	sid      int64         //segment id
-	offset   int64         //segment current offset
-	byteSize int32         //segment size
-	chunks   Chunks
-	isOpen   int32
-	slog     *SegmentLog //segment op log
+	path          string
+	name          string //basename_0000000000
+	rf            *os.File
+	wf            *os.File
+	bw            *bufio.Writer //
+	br            *bufio.Reader // data buffer
+	sid           int64         //segment id
+	offset        int64         //segment current offset
+	byteSize      int32         //segment size
+	chunks        Chunks
+	isOpen        int32
+	slog          *SegmentLog   //segment op log
+	appendChannel chan [][]byte //append channel
 	sync.RWMutex
+	writeWg sync.WaitGroup
 }
 
 func newSegment(path, name string, sid int64, slog *SegmentLog) *Segment {
 	return &Segment{
-		path:   path,
-		name:   name,
-		sid:    sid,
-		slog:   slog,
-		chunks: make(Chunks, 0, 5000)}
+		path:          path,
+		name:          name,
+		sid:           sid,
+		slog:          slog,
+		chunks:        make(Chunks, 0, 5000),
+		appendChannel: make(chan [][]byte, 500),
+		writeWg:       sync.WaitGroup{}}
 }
 
 func (self *Segment) String() string {
@@ -123,11 +128,87 @@ func (self *Segment) Open(do func(ol *oplog)) error {
 		}
 		//recover segment
 		self.recover(do)
+
+		self.writeWg.Add(1)
 		total, n, d, e := self.stat()
+
+		//start flush
+		go self.flush()
+		go self.compact()
 		log.InfoLog("kite_store", "Segment|Open|SUCC|%s|total:%d,n:%d,d:%d,e:%d", self.name, total, n, d, e)
+
 		return nil
 	}
 	return nil
+}
+
+//compact
+func (self *Segment) compact() {
+	//TODO
+}
+
+func (self *Segment) flush() {
+	var chunks [][]byte
+	ticker := time.NewTicker(1 * time.Second)
+	for atomic.LoadInt32(&self.isOpen) == 1 {
+		select {
+		case chunks = <-self.appendChannel:
+		case <-ticker.C:
+			//timeout
+		}
+		if len(chunks) > 0 {
+			for _, tmp := range chunks {
+				for {
+					l, err := self.bw.Write(tmp)
+					if nil != err && err != io.ErrShortWrite {
+						log.ErrorLog("kite_store", "Segment|flush|FAIL|%s|%d/%d", err, l, len(tmp))
+						break
+					} else if nil == err {
+						break
+					} else {
+						self.bw.Reset(self.wf)
+						log.ErrorLog("kite_store", "Segment|flush|FAIL|%s", err)
+					}
+					tmp = tmp[l:]
+				}
+			}
+			//flush
+			self.bw.Flush()
+			chunks = chunks[:0]
+		}
+	}
+
+	//flush left
+	finished := false
+	for !finished {
+		select {
+		case chunks = <-self.appendChannel:
+		default:
+			finished = true
+		}
+
+		if len(chunks) > 0 {
+			for _, tmp := range chunks {
+				for {
+					l, err := self.bw.Write(tmp)
+					if nil != err && err != io.ErrShortWrite {
+						log.ErrorLog("kite_store", "Segment|flush|FAIL|%s|%d/%d", err, l, len(tmp))
+						break
+					} else if nil == err {
+						break
+					} else {
+						self.bw.Reset(self.wf)
+						log.ErrorLog("kite_store", "Segment|flush|FAIL|%s", err)
+					}
+					tmp = tmp[l:]
+				}
+			}
+			//flush
+			self.bw.Flush()
+			chunks = chunks[:0]
+		}
+	}
+	self.writeWg.Done()
 }
 
 // chunks stat
@@ -147,13 +228,6 @@ func (self *Segment) stat() (total, normal, del, expired int32) {
 			}
 		}
 	}
-	return
-}
-
-// compact todo
-func (self *Segment) compact() {
-	//scan log
-
 	return
 }
 
@@ -366,43 +440,27 @@ func (self *Segment) loadChunk(c *Chunk) {
 func (self *Segment) Append(chunks []*Chunk) error {
 
 	//if closed
-	if self.isOpen == 0 {
+	if atomic.LoadInt32(&self.isOpen) == 0 {
 		return errors.New(fmt.Sprintf("Segment Is Closed!|%s", self.name))
 	}
-
+	chunkBytes := make([][]byte, 0, len(chunks))
 	length := int64(0)
 	for _, c := range chunks {
 		c.sid = self.sid
 		c.offset = self.offset + length
 		tmp := c.marshal()
-		for {
-			l, err := self.bw.Write(tmp)
-			length += int64(l)
-			if nil != err && err != io.ErrShortWrite {
-				log.ErrorLog("kite_store", "Segment|Append|FAIL|%s|%d/%d", err, l, len(tmp))
-				return err
-			} else if nil == err {
-				break
-			} else {
-				self.bw.Reset(self.wf)
-				log.ErrorLog("kite_store", "Segment|Append|FAIL|%s", err)
-			}
-			tmp = tmp[l:]
-
-		}
+		chunkBytes = append(chunkBytes, tmp)
+		length += int64(len(tmp))
 	}
+	//async write
+	self.appendChannel <- chunkBytes
 
-	//flush
-	self.bw.Flush()
 	// log.DebugLog("Segment|Append|SUCC|%d/%d", l, len(buff))
 	//tmp cache chunk
 	if nil == self.chunks {
 		self.chunks = make([]*Chunk, 0, 1000)
 	}
 	self.chunks = append(self.chunks, chunks...)
-
-	//sort
-	// sort.Sort(self.chunks)
 
 	//move offset
 	self.offset += int64(length)
@@ -414,6 +472,10 @@ func (self *Segment) Close() error {
 	self.Lock()
 	defer self.Unlock()
 	if atomic.CompareAndSwapInt32(&self.isOpen, 1, 0) {
+
+		//wait wirte finished
+		self.writeWg.Wait()
+
 		//close segment log
 		self.slog.Close()
 

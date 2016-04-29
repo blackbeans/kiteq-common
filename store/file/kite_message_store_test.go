@@ -5,10 +5,10 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
-	"strings"
-	"path/filepath"
 )
 
 func traverse(oplog *oplog) {
@@ -17,7 +17,7 @@ func traverse(oplog *oplog) {
 
 func TestSingle(t *testing.T) {
 	cleanSnapshot("./snapshot/")
-	snapshot := NewMessageStore("./snapshot/", 1, 10, 60*time.Second, traverse)
+	snapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 
 	for i := 0; i < 2; i++ {
@@ -34,7 +34,7 @@ func TestSingle(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	snapshot.Destory()
 
-	snapshot = NewMessageStore("./snapshot/", 1, 10, 60*time.Second, traverse)
+	snapshot = NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 
 	cleanSnapshot("./snapshot/")
@@ -42,7 +42,7 @@ func TestSingle(t *testing.T) {
 
 func TestAppend(t *testing.T) {
 	cleanSnapshot("./snapshot/")
-	snapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 	run := true
 	i := 0
@@ -82,11 +82,10 @@ func cleanSnapshot(path string) {
 
 }
 
-
 //test delete
 func TestDeleteAndStart(t *testing.T) {
 	cleanSnapshot("./snapshot/")
-	snapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 	for j := 0; j < 1000; j++ {
 		d := []byte(fmt.Sprintln(j))
@@ -96,7 +95,7 @@ func TestDeleteAndStart(t *testing.T) {
 	}
 	log.Printf("TestDeleteAndStart|Delete|Start...")
 
-	if snapshot.chunkId != 999{
+	if snapshot.chunkId != 999 {
 		t.Fail()
 	}
 
@@ -140,27 +139,27 @@ func TestDeleteAndStart(t *testing.T) {
 	snapshot.Destory()
 
 	log.Printf("TestDeleteAndStart|Start...")
-	snapshot = NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot = NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 
-	fcount:= 0
+	fcount := 0
 	//fetch all Segment
 	filepath.Walk("./snapshot/", func(path string, f os.FileInfo, err error) error {
 		// log.Info("MessageStore|Walk|%s", path)
-		if nil != f && !f.IsDir() && 
-		strings.HasSuffix(f.Name(),".data") && f.Size()==0 {
+		if nil != f && !f.IsDir() &&
+			strings.HasSuffix(f.Name(), ".data") && f.Size() == 0 {
 			fmt.Println(f.Name())
 			fcount++
 		}
 		return nil
 	})
 
-	log.Printf("TestDeleteAndStart|Start|Lstat|%d",fcount )
-	if fcount !=1{
+	log.Printf("TestDeleteAndStart|Start|Lstat|%d", fcount)
+	if fcount != 1 {
 		t.Fail()
 	}
-	log.Printf("TestDeleteAndStart|Start|ChunkId|%d",snapshot.chunkId)
-	if snapshot.chunkId != -1{
+	log.Printf("TestDeleteAndStart|Start|ChunkId|%d", snapshot.chunkId)
+	if snapshot.chunkId != -1 {
 		t.Fail()
 	}
 	snapshot.Destory()
@@ -169,7 +168,7 @@ func TestDeleteAndStart(t *testing.T) {
 //test delete
 func TestDelete(t *testing.T) {
 	cleanSnapshot("./snapshot/")
-	snapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 	for j := 0; j < 1000; j++ {
 		d := []byte(fmt.Sprintln(j))
@@ -183,7 +182,7 @@ func TestDelete(t *testing.T) {
 
 	log.Printf("TestDelete|Append|Complete...")
 	// //reload
-	nsnapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	nsnapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	nsnapshot.Start()
 
 	log.Printf("TestDelete|Delete|Start...")
@@ -199,11 +198,11 @@ func TestDelete(t *testing.T) {
 		}
 	}()
 
-	for _, s := range nsnapshot.segments {
-		for _, c := range s.chunks {
-			log.Printf("nsnapshot|------%d", c.id)
-		}
-	}
+	// for _, s := range nsnapshot.segments {
+	// 	for _, c := range s.chunks {
+	// 		log.Printf("nsnapshot|------%d", c.id)
+	// 	}
+	// }
 	for j := 0; j < 1000; j++ {
 		id := int64(j)
 		var str string
@@ -237,7 +236,7 @@ func TestDelete(t *testing.T) {
 func TestQuery(t *testing.T) {
 
 	cleanSnapshot("./snapshot/")
-	snapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 	var data [512]byte
 	for j := 0; j < 20; j++ {
@@ -306,7 +305,7 @@ func BenchmarkDelete(t *testing.B) {
 	t.Logf("BenchmarkDelete|Delete|Start...")
 	t.StopTimer()
 	cleanSnapshot("./snapshot/")
-	snapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 
 	for j := 0; j < 20; j++ {
@@ -338,7 +337,7 @@ func BenchmarkQuery(t *testing.B) {
 	log.Printf("BenchmarkQuery|Query|Start...")
 	t.StopTimer()
 	cleanSnapshot("./snapshot/")
-	snapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 	for j := 0; j < 20; j++ {
 		d := []byte(fmt.Sprintf("%d|hello snapshot", j))
@@ -370,7 +369,7 @@ func BenchmarkQuery(t *testing.B) {
 func BenchmarkAppend(t *testing.B) {
 	t.StopTimer()
 	cleanSnapshot("./snapshot/")
-	snapshot := NewMessageStore("./snapshot/", 1, 10, 1*time.Second, traverse)
+	snapshot := NewMessageStore("./snapshot/", 1, 10, traverse)
 	snapshot.Start()
 	t.StartTimer()
 

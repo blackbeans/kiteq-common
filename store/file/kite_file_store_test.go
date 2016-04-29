@@ -194,12 +194,18 @@ func TestFileStoreDelete(t *testing.T) {
 		//delete
 		fs.Delete(id)
 
+	}
+
+	time.Sleep(5 * time.Second)
+	for i := 0; i < 100; i++ {
+		id := fmt.Sprintf("%x", i) + "26c03f00665862591f696a980b5ac"
 		//check entity
 		entity := fs.Query(id)
 		if nil != entity {
 			t.Fail()
 		}
 	}
+
 	fs.Stop()
 	cleanSnapshot("./snapshot/")
 }
@@ -236,19 +242,19 @@ func TestFileStoreInit(t *testing.T) {
 		}
 	}
 
+	time.Sleep(10 * time.Second)
 	fs.Stop()
 
-	time.Sleep(10 * time.Second)
 	log.Println("-------------------Query")
 	fs = NewKiteFileStore(".", 5000000, 1*time.Second)
 	fs.Start()
 
-	for _, v := range fs.oplogs {
-		for _, ob := range v {
-
-			log.Printf("TestFileStoreInit|Check|%d|%s", ob.Id, ob.MessageId)
-		}
-	}
+	// for _, v := range fs.oplogs {
+	// 	for _, e := range v {
+	// 		ob := e.Value.(*opBody)
+	// 		log.Printf("TestFileStoreInit|Check|%d|%s", ob.Id, ob.MessageId)
+	// 	}
+	// }
 	log.Printf("TestFileStoreInit|Check|SUCC|\n")
 	//commit and check
 	for i := 50; i < 100; i++ {
@@ -257,7 +263,7 @@ func TestFileStoreInit(t *testing.T) {
 		//check entity
 		entity := fs.Query(id)
 		if nil == entity || !entity.Commit {
-			log.Printf("TestFileStoreInit|Exist|FAIL|%s|%s", id, entity)
+			// log.Printf("TestFileStoreInit|Exist|FAIL|%s|%s", id, entity)
 			t.Fail()
 			return
 		}
