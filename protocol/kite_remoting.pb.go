@@ -261,6 +261,7 @@ type Header struct {
 	Commit           *bool    `protobuf:"varint,7,req,name=commit" json:"commit,omitempty"`
 	Fly              *bool    `protobuf:"varint,8,req,name=fly,def=0" json:"fly,omitempty"`
 	Properties       []*Entry `protobuf:"bytes,9,rep,name=properties" json:"properties,omitempty"`
+	CreateTime       *int64   `protobuf:"varint,10,opt,name=createTime" json:"createTime,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -333,6 +334,13 @@ func (m *Header) GetProperties() []*Entry {
 		return m.Properties
 	}
 	return nil
+}
+
+func (m *Header) GetCreateTime() int64 {
+	if m != nil && m.CreateTime != nil {
+		return *m.CreateTime
+	}
+	return 0
 }
 
 // byte类消息
