@@ -70,7 +70,7 @@ func (self *KiteMemoryStore) Length() map[string] /*topic*/ int {
 }
 
 func (self *KiteMemoryStore) Monitor() string {
-	return fmt.Sprintf("memory-length:%d\n", self.Length())
+	return fmt.Sprintf("memory-length:%v\n", self.Length())
 }
 
 func (self *KiteMemoryStore) AsyncUpdate(entity *MessageEntity) bool { return self.UpdateEntity(entity) }

@@ -13,8 +13,8 @@ import (
 const (
 	PATH_SERVER         = "/kiteq/server"
 	PATH_SUB            = "/kiteq/sub"
-	MAX_WARTER_MARK     = int32(10 * 1000)
-	DEFAULT_WARTER_MARK = int32(4000)
+	MAX_WARTER_MARK     = int32(12 * 1000)
+	DEFAULT_WARTER_MARK = int32(6000)
 )
 
 //用于管理订阅关系，对接zookeeper的订阅关系变更
