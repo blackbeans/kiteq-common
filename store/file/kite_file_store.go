@@ -181,8 +181,12 @@ func (self *KiteFileStore) Monitor() string {
 }
 
 func (self *KiteFileStore) AsyncUpdate(entity *MessageEntity) bool { return self.UpdateEntity(entity) }
-func (self *KiteFileStore) AsyncDelete(messageId string) bool      { return self.Delete(messageId) }
-func (self *KiteFileStore) AsyncCommit(messageId string) bool      { return self.Commit(messageId) }
+func (self *KiteFileStore) AsyncDelete(topic, messageId string) bool {
+	return self.Delete(topic, messageId)
+}
+func (self *KiteFileStore) AsyncCommit(topic, messageId string) bool {
+	return self.Commit(topic, messageId)
+}
 
 //hash get elelment
 func (self *KiteFileStore) hash(messageid string) (l *sync.RWMutex, link *list.List, ol map[string]*list.Element, delCh chan *command) {
@@ -228,7 +232,7 @@ func (self *KiteFileStore) waitSaveDone(ob *opBody) {
 	}
 }
 
-func (self *KiteFileStore) Query(messageId string) *MessageEntity {
+func (self *KiteFileStore) Query(topic, messageId string) *MessageEntity {
 
 	lock, _, el, _ := self.hash(messageId)
 	lock.RLock()
@@ -328,7 +332,7 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 	}
 
 }
-func (self *KiteFileStore) Commit(messageId string) bool {
+func (self *KiteFileStore) Commit(topic, messageId string) bool {
 
 	cmd := func() *command {
 		lock, _, ol, _ := self.hash(messageId)
@@ -364,8 +368,8 @@ func (self *KiteFileStore) Commit(messageId string) bool {
 	return true
 
 }
-func (self *KiteFileStore) Rollback(messageId string) bool {
-	return self.Delete(messageId)
+func (self *KiteFileStore) Rollback(topic, messageId string) bool {
+	return self.Delete(topic, messageId)
 }
 func (self *KiteFileStore) UpdateEntity(entity *MessageEntity) bool {
 	cmd := func() *command {
@@ -406,7 +410,7 @@ func (self *KiteFileStore) UpdateEntity(entity *MessageEntity) bool {
 	}
 	return true
 }
-func (self *KiteFileStore) Delete(messageId string) bool {
+func (self *KiteFileStore) Delete(topic, messageId string) bool {
 
 	v, ch := func() (*opBody, chan *command) {
 		lock, _, el, ch := self.hash(messageId)
@@ -516,7 +520,7 @@ func (self *KiteFileStore) delSync(hashKey string, ch chan *command) {
 }
 
 //expired
-func (self *KiteFileStore) Expired(messageId string) bool {
+func (self *KiteFileStore) Expired(topic, messageId string) bool {
 
 	cmd := func() *command {
 		lock, link, el, _ := self.hash(messageId)
@@ -555,7 +559,7 @@ func (self *KiteFileStore) MoveExpired() {
 func (self *KiteFileStore) PageQueryEntity(hashKey string, kiteServer string, nextDeliveryTime int64, startIdx, limit int) (bool, []*MessageEntity) {
 
 	var pe []*MessageEntity
-	var del []string
+	var del [][]string
 	lock, link, _, _ := self.hash(hashKey)
 	lock.RLock()
 	i := 0
@@ -566,9 +570,9 @@ func (self *KiteFileStore) PageQueryEntity(hashKey string, kiteServer string, ne
 
 		if ob.Id < 0 {
 			if nil == del {
-				del = make([]string, 0, limit)
+				del = make([][]string, 0, limit)
 			}
-			del = append(del, ob.MessageId)
+			del = append(del, []string{ob.Topic, ob.MessageId})
 			continue
 		}
 
@@ -578,10 +582,10 @@ func (self *KiteFileStore) PageQueryEntity(hashKey string, kiteServer string, ne
 				if nil == pe {
 					pe = make([]*MessageEntity, 0, limit+1)
 				}
-
 				//创建消息
 				entity := &MessageEntity{
 					MessageId: ob.MessageId}
+				entity.Topic = ob.Topic
 				entity.Commit = ob.Commit
 				entity.FailGroups = ob.FailGroups
 				entity.SuccGroups = ob.SuccGroups
@@ -601,7 +605,7 @@ func (self *KiteFileStore) PageQueryEntity(hashKey string, kiteServer string, ne
 
 	//remove save failmessage
 	for _, mid := range del {
-		self.Delete(mid)
+		self.Delete(mid[0], mid[1])
 	}
 
 	hasMore := false
@@ -613,7 +617,7 @@ func (self *KiteFileStore) PageQueryEntity(hashKey string, kiteServer string, ne
 	tmp := pe[:0]
 	//query messageEntity
 	for _, e := range pe {
-		entity := self.Query(e.MessageId)
+		entity := self.Query(e.Topic, e.MessageId)
 		if nil != entity {
 			tmp = append(tmp, entity)
 		} else {

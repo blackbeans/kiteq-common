@@ -17,6 +17,12 @@ func (s batchType) String() string {
 		return "Stmt-Upate"
 	case 3:
 		return "Stmt-Delete"
+	case 4:
+		return "Stmt-DLQ_MOVE_QUERY"
+	case 5:
+		return "Stmt-DLQ_MOVE_INSERT"
+	case 6:
+		return "Stmt-DLQ_MOVE_DELETE"
 	}
 	return "Stmt-Unknown"
 }

@@ -9,20 +9,22 @@ import (
 
 func TestStmtPool(t *testing.T) {
 
-	dropsql := "drop database if exists `test`;"
-	createsql :=
-		"create table `test_a` ( " +
-			"id int(10) primary key auto_increment ," +
-			"username char(20)" +
-			");"
+	// dropsql := "drop database if exists `test`;"
+	// createsql :=
+	// 	"create table `test_a` ( " +
+	// 		"id int(10) primary key auto_increment ," +
+	// 		"username char(20)" +
+	// 		");"
 
-	db, _ := dbcreate("root:@tcp(localhost:3306)")
-	db.Exec(dropsql)
-	db.Exec("create database test;")
-	db.Exec(createsql)
-	db.Close()
+	// db, _ := dbcreate("root:@tcp(localhost:3306)/test")
+	// _, err := db.Exec(dropsql)
+	// t.Errorf("%s", err)
 
-	db, _ = dbcreate("root:@tcp(localhost:3306)/test")
+	// db.Exec("create database test;")
+	// db.Exec(createsql)
+	// db.Close()
+
+	db, _ := dbcreate("root:@tcp(localhost:3306)/test")
 	//建表
 	db.Exec("insert `test_a`(username) values('a')")
 

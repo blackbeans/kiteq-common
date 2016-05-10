@@ -1,11 +1,11 @@
 package mysql
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/blackbeans/kiteq-common/protocol"
 	. "github.com/blackbeans/kiteq-common/store"
 	log "github.com/blackbeans/log4go"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +34,7 @@ type KiteMysqlStore struct {
 	batchUpSize  int
 	batchDelSize int
 	flushPeriod  time.Duration
-	stmtPools    map[batchType][][]*StmtPool //第一层dblevel 第二维table level
+	stmtPools    map[batchType][][]*sql.Stmt //第一层dblevel 第二维table level
 	stop         bool
 	serverName   string
 }
@@ -107,37 +107,15 @@ func (self *KiteMysqlStore) Length() map[string] /*topic*/ int {
 }
 
 func (self *KiteMysqlStore) Monitor() string {
-	line := "Stmt-Pool\t"
-
-	bt := make([]batchType, 0, 10)
-	for k, _ := range self.stmtPools {
-		bt = append(bt, k)
-	}
-
-	sort.Sort(batchTypes(bt))
-
-	for _, t := range bt {
-		v, _ := self.stmtPools[t]
-		numWork := 0
-		active := 0
-		idle := 0
-
-		for _, t := range v {
-			for _, p := range t {
-				n, a, i := p.MonitorPool()
-				numWork += n
-				active += a
-				idle += i
-			}
-		}
-
-		line +=
-			fmt.Sprintf("%s[work:%d\tactive:%d\tidle:%d]\t", t, numWork, active, idle)
+	line := "KiteMysqlStore:\t"
+	for _, r := range self.dbshard.shardranges {
+		line += fmt.Sprintf("[master:%d,slave:%d]@[%d,%d]\t", r.master.Stats().OpenConnections,
+			r.slave.Stats().OpenConnections, r.min, r.max)
 	}
 	return line
 }
 
-func (self *KiteMysqlStore) Query(messageId string) *MessageEntity {
+func (self *KiteMysqlStore) Query(topic, messageId string) *MessageEntity {
 
 	var entity *MessageEntity
 	s := self.sqlwrapper.hashQuerySQL(messageId)
@@ -182,19 +160,19 @@ func (self *KiteMysqlStore) Save(entity *MessageEntity) bool {
 	return num == 1
 }
 
-func (self *KiteMysqlStore) Commit(messageId string) bool {
-	return self.AsyncCommit(messageId)
+func (self *KiteMysqlStore) Commit(topic, messageId string) bool {
+	return self.AsyncCommit(topic, messageId)
 }
 
-func (self *KiteMysqlStore) Rollback(messageId string) bool {
-	return self.Delete(messageId)
+func (self *KiteMysqlStore) Rollback(topic, messageId string) bool {
+	return self.Delete(topic, messageId)
 }
 
-func (self *KiteMysqlStore) Delete(messageId string) bool {
-	return self.AsyncDelete(messageId)
+func (self *KiteMysqlStore) Delete(topic, messageId string) bool {
+	return self.AsyncDelete(topic, messageId)
 }
 
-func (self *KiteMysqlStore) Expired(messageId string) bool { return true }
+func (self *KiteMysqlStore) Expired(topic, messageId string) bool { return true }
 
 func (self *KiteMysqlStore) MoveExpired() {
 	wg := sync.WaitGroup{}

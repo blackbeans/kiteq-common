@@ -82,15 +82,15 @@ type IKiteStore interface {
 
 	//批量提交channel
 	AsyncUpdate(entity *MessageEntity) bool
-	AsyncDelete(messageId string) bool
-	AsyncCommit(messageId string) bool
+	AsyncDelete(topic, messageId string) bool
+	AsyncCommit(topic, messageId string) bool
 
-	Query(messageId string) *MessageEntity
+	Query(topic, messageId string) *MessageEntity
 	Save(entity *MessageEntity) bool
-	Commit(messageId string) bool
-	Rollback(messageId string) bool
-	Delete(messageId string) bool
-	Expired(messageId string) bool
+	Commit(topic, messageId string) bool
+	Rollback(topic, messageId string) bool
+	Delete(topic, messageId string) bool
+	Expired(topic, messageId string) bool
 
 	//根据kiteServer名称查询需要重投的消息 返回值为 是否还有更多、和本次返回的数据结果
 	PageQueryEntity(hashKey string, kiteServer string, nextDeliveryTime int64, startIdx, limit int) (bool, []*MessageEntity)

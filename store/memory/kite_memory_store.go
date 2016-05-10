@@ -74,8 +74,12 @@ func (self *KiteMemoryStore) Monitor() string {
 }
 
 func (self *KiteMemoryStore) AsyncUpdate(entity *MessageEntity) bool { return self.UpdateEntity(entity) }
-func (self *KiteMemoryStore) AsyncDelete(messageId string) bool      { return self.Delete(messageId) }
-func (self *KiteMemoryStore) AsyncCommit(messageId string) bool      { return self.Commit(messageId) }
+func (self *KiteMemoryStore) AsyncDelete(topic, messageId string) bool {
+	return self.Delete(topic, messageId)
+}
+func (self *KiteMemoryStore) AsyncCommit(topic, messageId string) bool {
+	return self.Commit(topic, messageId)
+}
 
 //hash get elelment
 func (self *KiteMemoryStore) hash(messageid string) (l *sync.RWMutex, e map[string]*list.Element, lt *list.List) {
@@ -98,7 +102,7 @@ func (self *KiteMemoryStore) hash(messageid string) (l *sync.RWMutex, e map[stri
 	return
 }
 
-func (self *KiteMemoryStore) Query(messageId string) *MessageEntity {
+func (self *KiteMemoryStore) Query(topic, messageId string) *MessageEntity {
 	lock, el, _ := self.hash(messageId)
 	lock.RLock()
 	defer lock.RUnlock()
@@ -129,7 +133,7 @@ func (self *KiteMemoryStore) Save(entity *MessageEntity) bool {
 	el[entity.MessageId] = front
 	return true
 }
-func (self *KiteMemoryStore) Commit(messageId string) bool {
+func (self *KiteMemoryStore) Commit(topic, messageId string) bool {
 	lock, el, _ := self.hash(messageId)
 	lock.Lock()
 	defer lock.Unlock()
@@ -141,8 +145,8 @@ func (self *KiteMemoryStore) Commit(messageId string) bool {
 	entity.Commit = true
 	return true
 }
-func (self *KiteMemoryStore) Rollback(messageId string) bool {
-	return self.Delete(messageId)
+func (self *KiteMemoryStore) Rollback(topic, messageId string) bool {
+	return self.Delete(topic, messageId)
 }
 func (self *KiteMemoryStore) UpdateEntity(entity *MessageEntity) bool {
 	lock, el, _ := self.hash(entity.MessageId)
@@ -160,7 +164,7 @@ func (self *KiteMemoryStore) UpdateEntity(entity *MessageEntity) bool {
 	e.FailGroups = entity.FailGroups
 	return true
 }
-func (self *KiteMemoryStore) Delete(messageId string) bool {
+func (self *KiteMemoryStore) Delete(topic, messageId string) bool {
 	lock, el, dl := self.hash(messageId)
 	lock.Lock()
 	defer lock.Unlock()
@@ -181,8 +185,8 @@ func (self *KiteMemoryStore) innerDelete(messageId string,
 	// log.Info("KiteMemoryStore|innerDelete|%s\n", messageId)
 }
 
-func (self *KiteMemoryStore) Expired(messageId string) bool {
-	succ := self.Delete(messageId)
+func (self *KiteMemoryStore) Expired(topic, messageId string) bool {
+	succ := self.Delete(topic, messageId)
 	return succ
 
 }

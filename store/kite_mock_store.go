@@ -27,12 +27,12 @@ func (self *MockKiteStore) Length() map[string] /*topic*/ int {
 	return make(map[string] /*topic*/ int, 1)
 }
 
-func (self *MockKiteStore) AsyncUpdate(entity *MessageEntity) bool { return true }
-func (self *MockKiteStore) AsyncDelete(messgeid string) bool       { return true }
-func (self *MockKiteStore) AsyncCommit(messageId string) bool      { return true }
-func (self *MockKiteStore) Expired(messageId string) bool          { return true }
+func (self *MockKiteStore) AsyncUpdate(entity *MessageEntity) bool   { return true }
+func (self *MockKiteStore) AsyncDelete(topic, messgeid string) bool  { return true }
+func (self *MockKiteStore) AsyncCommit(topic, messageId string) bool { return true }
+func (self *MockKiteStore) Expired(topic, messageId string) bool     { return true }
 
-func (self *MockKiteStore) Query(messageId string) *MessageEntity {
+func (self *MockKiteStore) Query(topic, messageId string) *MessageEntity {
 	entity := NewMessageEntity(protocol.NewQMessage(buildBytesMessage(messageId)))
 	return entity
 
@@ -40,17 +40,17 @@ func (self *MockKiteStore) Query(messageId string) *MessageEntity {
 func (self *MockKiteStore) Save(entity *MessageEntity) bool {
 	return true
 }
-func (self *MockKiteStore) Commit(messageId string) bool {
+func (self *MockKiteStore) Commit(topic, messageId string) bool {
 	return true
 }
 
-func (self *MockKiteStore) Delete(messageId string) bool {
+func (self *MockKiteStore) Delete(topic, messageId string) bool {
 	return true
 }
-func (self *MockKiteStore) BatchDelete(messageId []string) bool {
+func (self *MockKiteStore) BatchDelete(topic, messageId []string) bool {
 	return true
 }
-func (self *MockKiteStore) Rollback(messageId string) bool {
+func (self *MockKiteStore) Rollback(topic, messageId string) bool {
 	return true
 }
 

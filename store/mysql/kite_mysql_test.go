@@ -170,7 +170,7 @@ func TestBatch(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 	for _, v := range mids {
-		e := kiteMysql.Query(v)
+		e := kiteMysql.Query("trade", v)
 		if nil == e || len(e.SuccGroups) < 1 {
 			t.Fatalf("TestBatch|Update FAIL|%s|%s\n", e, v)
 			t.Fail()
@@ -181,11 +181,11 @@ func TestBatch(t *testing.T) {
 
 	//测试批量删除
 	for _, v := range mids {
-		kiteMysql.AsyncDelete(v)
+		kiteMysql.AsyncDelete("trade", v)
 	}
 	time.Sleep(5 * time.Second)
 	for _, v := range mids {
-		entity := kiteMysql.Query(v)
+		entity := kiteMysql.Query("trade", v)
 		if nil != entity {
 			t.Fatalf("TestBatch|AysncDelete FAIL|%s\n", entity)
 			t.Fail()
@@ -343,7 +343,7 @@ func TestExpiredDLQ(t *testing.T) {
 
 	for _, messageId := range messageIds {
 
-		entity := kiteMysql.Query(messageId)
+		entity := kiteMysql.Query("trade", messageId)
 		if nil != entity {
 			t.Fail()
 			fmt.Println("MoveExpired|FAIL|" + messageId)
@@ -387,7 +387,7 @@ func innerT(kiteMysql *KiteMysqlStore, msg interface{}, msgid string, t *testing
 		t.Logf("SAVE|SUCC|%s\n", entity)
 	}
 
-	ret := kiteMysql.Query(msgid)
+	ret := kiteMysql.Query("trade", msgid)
 	t.Logf("Query|%s|%s\n", msgid, ret)
 	if nil == ret {
 		t.Fail()
@@ -413,14 +413,14 @@ func innerT(kiteMysql *KiteMysqlStore, msg interface{}, msgid string, t *testing
 	}
 
 	t.Logf("Commint BEGIN")
-	commit := kiteMysql.Commit(msgid)
+	commit := kiteMysql.Commit("trade", msgid)
 	if !commit {
 		t.Logf("Commint FAIL")
 		t.Fail()
 	}
 	t.Logf("Commint END")
 	time.Sleep(200 * time.Millisecond)
-	ret = kiteMysql.Query(msgid)
+	ret = kiteMysql.Query("trade", msgid)
 	t.Logf("PageQueryEntity|COMMIT RESULT|%s\n", ret)
 	if !ret.Commit {
 		t.Logf("Commit|FAIL|%s\n", ret)

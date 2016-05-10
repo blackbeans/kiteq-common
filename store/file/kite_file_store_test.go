@@ -10,13 +10,6 @@ import (
 	"time"
 )
 
-func TestCorruptStore(t *testing.T) {
-	fs := NewKiteFileStore("./kiteq-bak", 5000000, 1*time.Second)
-	fs.Start()
-
-	fs.Stop()
-}
-
 func TestFileStoreQuery(t *testing.T) {
 	cleanSnapshot("./snapshot/")
 	fs := NewKiteFileStore(".", 5000000, 1*time.Second)
@@ -46,7 +39,7 @@ func TestFileStoreQuery(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		id := fmt.Sprintf("%x", i) + "26c03f00665862591f696a980b5ac"
-		entity := fs.Query(id)
+		entity := fs.Query("trade", id)
 		if nil == entity {
 			t.Fail()
 			log.Printf("FAIL|%s\n", entity)
@@ -88,9 +81,9 @@ func TestFileStoreCommit(t *testing.T) {
 	//commit and check
 	for i := 0; i < 100; i++ {
 		id := fmt.Sprintf("%x", i) + "26c03f00665862591f696a980b5ac"
-		fs.Commit(id)
+		fs.Commit("trade", id)
 
-		entity := fs.Query(id)
+		entity := fs.Query("trade", id)
 		if nil == entity {
 			t.Fail()
 		} else if !entity.Commit {
@@ -145,7 +138,7 @@ func TestFileStoreUpdate(t *testing.T) {
 			t.Fail()
 		}
 		//check entity
-		entity := fs.Query(id)
+		entity := fs.Query("trade", id)
 		// log.Printf("++++++++++++++|%s|%s", entity.Header, string(entity.GetBody().([]byte)))
 		if nil == entity {
 			t.Fail()
@@ -192,7 +185,7 @@ func TestFileStoreDelete(t *testing.T) {
 		id := fmt.Sprintf("%x", i) + "26c03f00665862591f696a980b5ac"
 
 		//delete
-		fs.Delete(id)
+		fs.Delete("trade", id)
 
 	}
 
@@ -200,7 +193,7 @@ func TestFileStoreDelete(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		id := fmt.Sprintf("%x", i) + "26c03f00665862591f696a980b5ac"
 		//check entity
-		entity := fs.Query(id)
+		entity := fs.Query("trade", id)
 		if nil != entity {
 			t.Fail()
 		}
@@ -238,7 +231,7 @@ func TestFileStoreInit(t *testing.T) {
 		}
 
 		if i < 50 {
-			fs.AsyncDelete(entity.MessageId)
+			fs.AsyncDelete(entity.Topic, entity.MessageId)
 		}
 	}
 
@@ -261,7 +254,7 @@ func TestFileStoreInit(t *testing.T) {
 		id := fmt.Sprint(i) + "26c03f00665862591f696a980b5ac"
 
 		//check entity
-		entity := fs.Query(id)
+		entity := fs.Query("trade", id)
 		if nil == entity || !entity.Commit {
 			// log.Printf("TestFileStoreInit|Exist|FAIL|%s|%s", id, entity)
 			t.Fail()
@@ -277,7 +270,7 @@ func TestFileStoreInit(t *testing.T) {
 		id := fmt.Sprint(i) + "26c03f00665862591f696a980b5ac"
 
 		//check entity
-		entity := fs.Query(id)
+		entity := fs.Query("trade", id)
 		if nil != entity {
 			log.Printf("TestFileStoreInit|Delete|FAIL|%s", id)
 			t.Fail()

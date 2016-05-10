@@ -5,6 +5,7 @@ import (
 	log "github.com/blackbeans/log4go"
 	_ "github.com/go-sql-driver/mysql"
 	"strconv"
+	"time"
 )
 
 const (
@@ -50,14 +51,14 @@ func newDbShard(options MysqlOptions) DbShard {
 }
 
 func openDb(addr string, shardId int, idleConn, maxConn int) *sql.DB {
-
-	db, err := sql.Open("mysql", addr+"_"+strconv.Itoa(shardId))
+	db, err := sql.Open("mysql", addr+"_"+strconv.Itoa(shardId)+"?timeout=30s&readTimeout=30s")
 	if err != nil {
 		log.ErrorLog("kite_store", "NewKiteMysql|CONNECT FAIL|%s|%s\n", err, addr)
 		panic(err)
 	}
 	db.SetMaxIdleConns(idleConn)
 	db.SetMaxOpenConns(maxConn)
+	db.SetConnMaxLifetime(5 * time.Minute)
 	return db
 }
 
