@@ -5,7 +5,7 @@ import (
 	log "github.com/blackbeans/log4go"
 	_ "github.com/go-sql-driver/mysql"
 	"strconv"
-	"time"
+	// "time"
 )
 
 const (
@@ -58,7 +58,7 @@ func openDb(addr string, shardId int, idleConn, maxConn int) *sql.DB {
 	}
 	db.SetMaxIdleConns(idleConn)
 	db.SetMaxOpenConns(maxConn)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	// db.SetConnMaxLifetime(5 * time.Minute)
 	return db
 }
 
