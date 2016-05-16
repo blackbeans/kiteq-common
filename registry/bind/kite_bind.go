@@ -1,4 +1,4 @@
-package binding
+package bind
 
 import (
 	"encoding/json"
@@ -58,7 +58,7 @@ func (self *Binding) conflict(bind *Binding) bool {
 }
 
 //是否与当前bind匹配
-func (self *Binding) matches(topic string, messageType string) bool {
+func (self *Binding) Matches(topic string, messageType string) bool {
 	if self.BindType == BIND_FANOUT {
 		return true
 	} else if self.BindType == BIND_REGX {

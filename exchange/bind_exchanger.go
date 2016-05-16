@@ -1,6 +1,8 @@
-package binding
+package exchange
 
 import (
+	"github.com/blackbeans/kiteq-common/registry"
+	"github.com/blackbeans/kiteq-common/registry/bind"
 	log "github.com/blackbeans/log4go"
 	"github.com/blackbeans/turbo"
 	"math"
@@ -19,11 +21,11 @@ const (
 
 //用于管理订阅关系，对接zookeeper的订阅关系变更
 type BindExchanger struct {
-	exchanger      map[string] /*topic*/ map[string] /*groupId*/ []*Binding           //保存的订阅关系
+	exchanger      map[string] /*topic*/ map[string] /*groupId*/ []*bind.Binding      //保存的订阅关系
 	limiters       map[string] /*topic*/ map[string] /*groupId*/ *turbo.BurstyLimiter //group->topic->limiter
 	topics         []string                                                           //当前服务器可投递的topic类型
 	lock           sync.RWMutex
-	zkmanager      *ZKManager
+	registryCenter *registry.RegistryCenter
 	kiteqserver    string
 	defaultLimiter *turbo.BurstyLimiter
 }
@@ -31,13 +33,13 @@ type BindExchanger struct {
 func NewBindExchanger(zkhost string,
 	kiteQServer string) *BindExchanger {
 	ex := &BindExchanger{
-		exchanger: make(map[string]map[string][]*Binding, 100),
+		exchanger: make(map[string]map[string][]*bind.Binding, 100),
 		limiters:  make(map[string]map[string]*turbo.BurstyLimiter, 100),
 		topics:    make([]string, 0, 50)}
-	zkmanager := NewZKManager(zkhost)
-	zkmanager.RegisteWather(PATH_SERVER, ex)
-	zkmanager.RegisteWather(PATH_SUB, ex)
-	ex.zkmanager = zkmanager
+	center := registry.NewRegistryCenter(zkhost)
+	center.RegisteWatcher(PATH_SERVER, ex)
+	center.RegisteWatcher(PATH_SUB, ex)
+	ex.registryCenter = center
 	ex.kiteqserver = kiteQServer
 	limiter, err := turbo.NewBurstyLimiter(int(DEFAULT_WARTER_MARK/2), int(DEFAULT_WARTER_MARK))
 	if nil != err {
@@ -84,7 +86,7 @@ func (self *BindExchanger) Topic2Groups() map[string][]string {
 
 //推送Qserver到配置中心
 func (self *BindExchanger) PushQServer(hostport string, topics []string) bool {
-	err := self.zkmanager.PublishQServer(hostport, topics)
+	err := self.registryCenter.PublishQServer(hostport, topics)
 	if nil != err {
 		log.ErrorLog("kite_bind", "BindExchanger|PushQServer|FAIL|%s|%s|%s\n", err, hostport, topics)
 		return false
@@ -107,7 +109,7 @@ func (self *BindExchanger) PushQServer(hostport string, topics []string) bool {
 	}
 	//存在需要删除的topics
 	if len(delTopics) > 0 {
-		self.zkmanager.UnpushlishQServer(hostport, delTopics)
+		self.registryCenter.UnpushlishQServer(hostport, delTopics)
 		func() {
 			self.lock.Lock()
 			defer self.lock.Unlock()
@@ -151,7 +153,7 @@ func (self *BindExchanger) subscribeBinds(topics []string) bool {
 	self.lock.Lock()
 	defer self.lock.Unlock()
 	for _, topic := range topics {
-		binds, err := self.zkmanager.GetBindAndWatch(topic)
+		binds, err := self.registryCenter.GetBindAndWatch(topic)
 		if nil != err {
 			log.ErrorLog("kite_bind", "BindExchanger|SubscribeBinds|FAIL|%s|%s\n", err, topic)
 			return false
@@ -167,22 +169,22 @@ func (self *BindExchanger) subscribeBinds(topics []string) bool {
 }
 
 //根据topic和messageType 类型获取订阅关系
-func (self *BindExchanger) FindBinds(topic string, messageType string, filter func(b *Binding) bool) ([]*Binding, map[string]*turbo.BurstyLimiter) {
+func (self *BindExchanger) FindBinds(topic string, messageType string, filter func(b *bind.Binding) bool) ([]*bind.Binding, map[string]*turbo.BurstyLimiter) {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 	groups, ok := self.exchanger[topic]
 	if !ok {
-		return []*Binding{}, nil
+		return []*bind.Binding{}, nil
 	}
 
 	topicLimiters, ok := self.limiters[topic]
 	limiters := make(map[string]*turbo.BurstyLimiter, 10)
 	//符合规则的binds
-	validBinds := make([]*Binding, 0, 10)
+	validBinds := make([]*bind.Binding, 0, 10)
 	for _, binds := range groups {
 		for _, b := range binds {
 			//匹配并且不被过滤
-			if b.matches(topic, messageType) && !filter(b) {
+			if b.Matches(topic, messageType) && !filter(b) {
 				validBinds = append(validBinds, b)
 				if ok {
 					limiter, gok := topicLimiters[b.GroupId]
@@ -202,14 +204,14 @@ func (self *BindExchanger) FindBinds(topic string, messageType string, filter fu
 }
 
 //订阅关系topic下的group发生变更
-func (self *BindExchanger) NodeChange(path string, eventType ZkEvent, childNode []string) {
+func (self *BindExchanger) NodeChange(path string, eventType registry.RegistryEvent, childNode []string) {
 
 	//如果是订阅关系变更则处理
-	if strings.HasPrefix(path, KITEQ_SUB) {
+	if strings.HasPrefix(path, registry.KITEQ_SUB) {
 		//获取topic
 		split := strings.Split(path, "/")
 		if len(split) < 4 {
-			if eventType == Created {
+			if eventType == registry.Created {
 				//不合法的订阅璐姐
 				log.ErrorLog("kite_bind", "BindExchanger|NodeChange|INVALID SUB PATH |%s|%t\n", path, childNode)
 			}
@@ -229,9 +231,9 @@ func (self *BindExchanger) NodeChange(path string, eventType ZkEvent, childNode 
 
 		// //对当前的topic的分组进行重新设置
 		switch eventType {
-		case Created, Child:
+		case registry.Created, registry.Child:
 
-			bm, err := self.zkmanager.GetBindAndWatch(topic)
+			bm, err := self.registryCenter.GetBindAndWatch(topic)
 			if nil != err {
 				log.ErrorLog("kite_bind", "BindExchanger|NodeChange|获取订阅关系失败|%s|%s\n", path, childNode)
 			}
@@ -252,10 +254,10 @@ func (self *BindExchanger) NodeChange(path string, eventType ZkEvent, childNode 
 	}
 }
 
-func (self *BindExchanger) DataChange(path string, binds []*Binding) {
+func (self *BindExchanger) DataChange(path string, binds []*bind.Binding) {
 
 	//订阅关系变更才处理
-	if strings.HasPrefix(path, KITEQ_SUB) {
+	if strings.HasPrefix(path, registry.KITEQ_SUB) {
 
 		split := strings.Split(path, "/")
 		//获取topic
@@ -273,7 +275,7 @@ func (self *BindExchanger) DataChange(path string, binds []*Binding) {
 }
 
 //订阅关系改变
-func (self *BindExchanger) onBindChanged(topic, groupId string, newbinds []*Binding) {
+func (self *BindExchanger) onBindChanged(topic, groupId string, newbinds []*bind.Binding) {
 
 	if len(groupId) <= 0 {
 		delete(self.exchanger, topic)
@@ -289,7 +291,7 @@ func (self *BindExchanger) onBindChanged(topic, groupId string, newbinds []*Bind
 	v, ok := self.exchanger[topic]
 
 	if !ok {
-		v = make(map[string][]*Binding, 10)
+		v = make(map[string][]*bind.Binding, 10)
 		self.exchanger[topic] = v
 	}
 
@@ -328,7 +330,7 @@ func (self *BindExchanger) onBindChanged(topic, groupId string, newbinds []*Bind
 
 //当zk断开链接时
 func (self *BindExchanger) OnSessionExpired() {
-	err := self.zkmanager.PublishQServer(self.kiteqserver, self.topics)
+	err := self.registryCenter.PublishQServer(self.kiteqserver, self.topics)
 	if nil != err {
 		log.ErrorLog("kite_bind", "BindExchanger|OnSessionExpired|PushQServer|FAIL|%s|%s|%s", err, self.kiteqserver, self.topics)
 		return
@@ -343,8 +345,8 @@ func (self *BindExchanger) OnSessionExpired() {
 //关闭掉exchanger
 func (self *BindExchanger) Shutdown() {
 	//删除掉当前的QServer
-	self.zkmanager.UnpushlishQServer(self.kiteqserver, self.topics)
+	self.registryCenter.UnpushlishQServer(self.kiteqserver, self.topics)
 	time.Sleep(10 * time.Second)
-	self.zkmanager.Close()
+	self.registryCenter.Close()
 	log.InfoLog("kite_bind", "BindExchanger|Shutdown...")
 }

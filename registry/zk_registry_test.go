@@ -1,13 +1,14 @@
-package binding
+package registry
 
 import (
+	"github.com/blackbeans/kiteq-common/registry/bind"
 	"testing"
 	"time"
 )
 
 func TestPublishQServer(t *testing.T) {
 	zkmanager := NewZKManager("localhost:2181")
-	zkmanager.RegisteWather("/kiteq", &MockWatcher{})
+	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
 	topics := []string{"trade", "feed", "comment"}
@@ -65,7 +66,7 @@ func TestPublishTopic(t *testing.T) {
 
 	topics := []string{"trade", "feed", "comment"}
 	zkmanager := NewZKManager("localhost:2181")
-	zkmanager.RegisteWather("/kiteq", &MockWatcher{})
+	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
 	err := zkmanager.PublishTopics(topics, "p-trade-a", "localhost:2181")
@@ -82,11 +83,11 @@ func TestPublishTopic(t *testing.T) {
 func TestSubscribeTopic(t *testing.T) {
 
 	zkmanager := NewZKManager("localhost:2181")
-	zkmanager.RegisteWather("/kiteq", &MockWatcher{})
+	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
-	persistentBind := []*Binding{Bind_Direct("s-trade-g", "trade", "trade-succ", -1, true)}
-	tmpBind := []*Binding{Bind_Direct("s-trade-g", "trade-temp", "trade-fail", -1, false)}
+	persistentBind := []*bind.Binding{bind.Bind_Direct("s-trade-g", "trade", "trade-succ", -1, true)}
+	tmpBind := []*bind.Binding{bind.Bind_Direct("s-trade-g", "trade-temp", "trade-fail", -1, false)}
 
 	err := zkmanager.PublishBindings("s-trade-g", persistentBind)
 	if nil != err {

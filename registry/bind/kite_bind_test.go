@@ -1,4 +1,4 @@
-package binding
+package bind
 
 import (
 	"testing"
@@ -37,7 +37,7 @@ func TestBinding(t *testing.T) {
 	mb, _ = MarshalBinds([]*Binding{rb})
 	t.Logf("TestBinding|Regx|%s\n", string(mb))
 
-	if !rb.matches("trade", "pay-500") {
+	if !rb.Matches("trade", "pay-500") {
 		t.Fail()
 		t.Logf("TestBinding|Regx|FAIL|%s\n", string(mb))
 	}
@@ -46,7 +46,7 @@ func TestBinding(t *testing.T) {
 	mb, _ = MarshalBinds([]*Binding{fb})
 	t.Logf("TestBinding|Faout|%s\n", string(mb))
 
-	if !fb.matches("trade", "pay-500") {
+	if !fb.Matches("trade", "pay-500") {
 		t.Fail()
 		t.Logf("TestBinding|Fanout|FAIL|%s\n", string(mb))
 	}
