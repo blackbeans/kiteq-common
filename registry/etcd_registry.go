@@ -1,34 +1,57 @@
 package registry
 
-// type ZKManager struct {
-// 	zkhosts   string
-// 	wathcers  map[string]IWatcher //基本的路径--->watcher zk可以复用了
-// 	session   *zk.Conn
-// 	eventChan <-chan zk.Event
-// 	isClose   bool
+// import (
+// 	"container/list"
+// 	_ "github.com/blackbeans/log4go"
+// 	"github.com/coreos/etcd/client"
+// 	_ "golang.org/x/net/context"
+// 	"strings"
+// 	"time"
+// )
+
+// type EtcdRegistry struct {
+// 	config   client.Config
+// 	session  client.Client
+// 	api      *client.KeysAPI
+// 	nodes    *list.List
+// 	wathcers map[string]IWatcher //基本的路径--->watcher zk可以复用了
 // }
 
-// func NewZKManager(zkhosts string) *ZKManager {
-// 	zkmanager := &ZKManager{zkhosts: zkhosts, wathcers: make(map[string]IWatcher, 10)}
-// 	zkmanager.Start()
+// func NewEtcdRegistry(hosts string) *EtcdRegistry {
 
-// 	return zkmanager
+// 	ectdAp := strings.Split(hosts, ",")
+// 	cfg := client.Config{
+// 		Endpoints: []string{ectdAp},
+// 		Transport: client.DefaultTransport,
+// 		// set timeout per request to fail fast when the target endpoint is unavailable
+// 		HeaderTimeoutPerRequest: 5 * time.Second}
+
+// 	return &EtcdRegistry{config: cfg, nodes: list.New()}
+
 // }
 
-// func (self *ZKManager) Start() {
+// func (self *EtcdRegistry) Start() {
 
+// 	etcConn, err := client.New(cfg)
+// 	if nil != err {
+// 		panic(err)
+// 	}
+
+// 	api := client.NewKeysAPI(etcConn)
+// 	self.session = etcConn
+// 	self.api = api
 // 	go self.listenEvent()
 // }
 
-// //如果返回false则已经存在
-// func (self *ZKManager) RegisteWather(rootpath string, w IWatcher) bool {
+// // //如果返回false则已经存在
+// func (self *EtcdRegistry) RegisteWather(rootpath string, w IWatcher) bool {
 // 	_, ok := self.wathcers[rootpath]
 // 	if ok {
 // 		return false
-// 	} else {
-// 		self.wathcers[rootpath] = w
-// 		return true
 // 	}
+// 	self.wathcers[rootpath] = w
+// 	return true
+
 // }
 
 // //监听数据变更
@@ -138,7 +161,7 @@ package registry
 // }
 
 // //发布topic对应的server
-// func (self *ZKManager) PublishQServer(hostport string, topics []string) error {
+// func (self *EtcdRegistry) PublishQServer(hostport string, topics []string) error {
 
 // 	for _, topic := range topics {
 // 		qpath := KITEQ_SERVER + "/" + topic
@@ -146,10 +169,15 @@ package registry
 // 		ppath := KITEQ_PUB + "/" + topic
 
 // 		//创建发送和订阅的根节点
-// 		self.traverseCreatePath(ppath, nil, zk.CreatePersistent)
-// 		// self.session.ExistsW(ppath)
-// 		self.traverseCreatePath(spath, nil, zk.CreatePersistent)
-// 		self.session.ExistsW(spath)
+// 		self.api.Create(context.Background(), ppath, nil)
+// 		w := self.api.Watcher(ppath, client.WatcherOptions{})
+// 		resp, err := w.Next(context.Background())
+// 		self.api.Create(context.Background(), spath, nil)
+
+// 		// self.traverseCreatePath(ppath, nil, zk.CreatePersistent)
+// 		// // self.session.ExistsW(ppath)
+// 		// self.traverseCreatePath(spath, nil, zk.CreatePersistent)
+// 		// self.session.ExistsW(spath)
 
 // 		//先删除当前这个临时节点再注册 避免监听不到临时节点变更的事件
 // 		self.session.Delete(qpath+"/"+hostport, -1)
