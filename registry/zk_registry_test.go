@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestPublishQServer(t *testing.T) {
+func TestZkPublishQServer(t *testing.T) {
 	zkmanager := NewZKManager("localhost:2181")
 	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
@@ -62,7 +62,7 @@ func cleanUp(t *testing.T, zk *ZKManager, path string) {
 }
 
 //测试发布 topic
-func TestPublishTopic(t *testing.T) {
+func TestZkPublishTopic(t *testing.T) {
 
 	topics := []string{"trade", "feed", "comment"}
 	zkmanager := NewZKManager("localhost:2181")
@@ -72,7 +72,7 @@ func TestPublishTopic(t *testing.T) {
 	err := zkmanager.PublishTopics(topics, "p-trade-a", "localhost:2181")
 	if nil != err {
 		t.Fail()
-		t.Logf("TestPublishTopic|PublishTopic|%t|%s\n", topics, "localhost:2181")
+		t.Logf("TestZkPublishTopic|PublishTopic|%t|%s\n", topics, "localhost:2181")
 		return
 	}
 	cleanUp(t, zkmanager, "/kiteq")
@@ -80,7 +80,7 @@ func TestPublishTopic(t *testing.T) {
 }
 
 //测试订阅topic
-func TestSubscribeTopic(t *testing.T) {
+func TestZkSubscribeTopic(t *testing.T) {
 
 	zkmanager := NewZKManager("localhost:2181")
 	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
@@ -92,19 +92,19 @@ func TestSubscribeTopic(t *testing.T) {
 	err := zkmanager.PublishBindings("s-trade-g", persistentBind)
 	if nil != err {
 		t.Fail()
-		t.Logf("TestSubscribeTopic|SubscribeTopic|%s|%t\n", err, persistentBind)
+		t.Logf("TestZkSubscribeTopic|SubscribeTopic|%s|%t\n", err, persistentBind)
 		return
 	}
 
-	t.Logf("TestSubscribeTopic|SubscribeTopic|P|SUCC|%t\n", persistentBind)
+	t.Logf("TestZkSubscribeTopic|SubscribeTopic|P|SUCC|%t\n", persistentBind)
 
 	err = zkmanager.PublishBindings("s-trade-g", tmpBind)
 	if nil != err {
 		t.Fail()
-		t.Logf("TestSubscribeTopic|SubscribeTopic|%t|%s\n", err, tmpBind)
+		t.Logf("TestZkSubscribeTopic|SubscribeTopic|%t|%s\n", err, tmpBind)
 	}
 
-	t.Logf("TestSubscribeTopic|SubscribeTopic|T|SUCC|%s\n", tmpBind)
+	t.Logf("TestZkSubscribeTopic|SubscribeTopic|T|SUCC|%s\n", tmpBind)
 
 	//休息一下等待节点创建成功
 	time.Sleep(1 * time.Second)
@@ -112,11 +112,11 @@ func TestSubscribeTopic(t *testing.T) {
 	bindings, err := zkmanager.GetBindAndWatch("trade")
 	if nil != err {
 		t.Fail()
-		t.Logf("TestSubscribeTopic|GetBindAndWatch|trade|FAIL|%t|%s\n", err, "trade")
+		t.Logf("TestZkSubscribeTopic|GetBindAndWatch|trade|FAIL|%t|%s\n", err, "trade")
 		return
 	}
 
-	t.Logf("TestSubscribeTopic|GetBindAndWatch|trade|SUCC|%t\n", bindings)
+	t.Logf("TestZkSubscribeTopic|GetBindAndWatch|trade|SUCC|%t\n", bindings)
 	if len(bindings) != 1 {
 		t.Fail()
 
@@ -129,10 +129,10 @@ func TestSubscribeTopic(t *testing.T) {
 	bindings, err = zkmanager.GetBindAndWatch("trade-temp")
 	if nil != err {
 		t.Fail()
-		t.Logf("TestSubscribeTopic|GetBindAndWatch|trade-temp|FAIL|%t|%s\n", err, "trade-temp")
+		t.Logf("TestZkSubscribeTopic|GetBindAndWatch|trade-temp|FAIL|%t|%s\n", err, "trade-temp")
 
 	}
-	t.Logf("TestSubscribeTopic|GetBindAndWatch|trade-temp|SUCC|%t\n", bindings)
+	t.Logf("TestZkSubscribeTopic|GetBindAndWatch|trade-temp|SUCC|%t\n", bindings)
 
 	if len(bindings) != 1 {
 		t.Fail()

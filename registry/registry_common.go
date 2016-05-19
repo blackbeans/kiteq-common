@@ -97,12 +97,12 @@ func (self *MockWatcher) NodeChange(path string, eventType RegistryEvent, childN
 		split := strings.Split(path, "/")
 		if len(split) < 4 {
 			//不合法的订阅璐姐
-			log.Printf("MockWatcher|NodeChange|INVALID SUB PATH |%s|%t\n", path, childNode)
+			log.Printf("MockWatcher|NodeChange|INVALID SUB PATH |%s|%d|%v", path, eventType, childNode)
 			return
 		}
-		log.Printf("MockWatcher|NodeChange|SUB节点变更|%s|%s\n", path, childNode)
+		log.Printf("MockWatcher|NodeChange|SUB节点变更||%s|%d|%v", path, eventType, childNode)
 	} else {
-		log.Printf("MockWatcher|NodeChange|非SUB节点变更|%s|%s\n", path, childNode)
+		log.Printf("MockWatcher|NodeChange|节点变更||%s|%d|%v", path, eventType, childNode)
 	}
 	return
 }

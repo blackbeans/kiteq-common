@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"github.com/blackbeans/kiteq-common/registry/bind"
 	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 	"testing"
@@ -9,6 +10,13 @@ import (
 
 var session client.Client
 var keyApi client.KeysAPI
+var topics = make([]string, 0, 10)
+
+func testInit() {
+
+	keyApi.Delete(context.Background(), "/kiteq", &client.DeleteOptions{Recursive: true})
+	time.Sleep(1 * time.Second)
+}
 
 func init() {
 	cfg := client.Config{
@@ -18,32 +26,55 @@ func init() {
 		HeaderTimeoutPerRequest: 5 * time.Second}
 	session, _ = client.New(cfg)
 	keyApi = client.NewKeysAPI(session)
-}
 
-func TestQServerWroker(t *testing.T) {
-
-	topics := make([]string, 0, 10)
 	topics = append(topics, "trade")
 	topics = append(topics, "message")
-	for _, t := range topics {
-		qpath := KITEQ_SERVER + "/" + t
-		keyApi.Delete(context.Background(), qpath, &client.DeleteOptions{Recursive: true})
-	}
-	time.Sleep(10 * time.Second)
+}
+
+func TestQServerWroker_Watcher(t *testing.T) {
+
+	testInit()
+
+	//watcher
+	watcher := &QServersWatcher{Api: keyApi, Topics: topics, Watcher: &MockWatcher{}}
+	watcher.Watch()
 
 	// Hostport        string
 	// Topics          []string
 	// KeepalivePeriod time.Duration
-
-	worker := &QServerWroker{Api: keyApi, Topics: topics, KeepalivePeriod: 2 * time.Second, Hostport: "localhost:8080"}
-
-	worker.Keepalive()
-
+	worker := &QServerWroker{Api: keyApi, Topics: topics,
+		KeepalivePeriod: 2 * time.Second, Hostport: "localhost:8080"}
+	worker.Start()
 	time.Sleep(100 * time.Millisecond)
 
 	qpath := KITEQ_SERVER + "/" + "trade"
 
-	resp, err := keyApi.Get(context.Background(), qpath, &client.GetOptions{Sort: true, Recursive: true})
+	running := true
+	go func() {
+		for running {
+			worker.Keepalive()
+			time.Sleep(2 * time.Second)
+		}
+	}()
+
+	time.Sleep(10 * time.Second)
+	resp, err := keyApi.Get(context.Background(), qpath, &client.GetOptions{Recursive: false})
+	if nil != err {
+		t.Fail()
+		t.Log(err)
+		return
+	}
+
+	if resp.Node.Nodes.Len() <= 0 {
+		t.Fail()
+		t.Logf("TestQServerWroker|Schedule Refresh|%s\n", resp.Node.Nodes)
+	}
+
+	for _, n := range resp.Node.Nodes {
+		t.Logf("%s,kiteqServer:%s", qpath, n.Key)
+	}
+
+	resp, err = keyApi.Get(context.Background(), qpath, &client.GetOptions{Sort: true, Recursive: true})
 	if nil != err {
 		t.Fail()
 		t.Log(err)
@@ -53,7 +84,7 @@ func TestQServerWroker(t *testing.T) {
 	for _, n := range resp.Node.Nodes {
 		t.Logf(n.Key)
 	}
-
+	running = false
 	// //wait expired
 	time.Sleep(10 * time.Second)
 
@@ -69,28 +100,71 @@ func TestQServerWroker(t *testing.T) {
 		t.Logf("Not Expired Node %s\t%v\n", qpath, resp.Node.Nodes)
 	}
 
+}
+
+//
+func TestQClientWorker_Watcher(t *testing.T) {
+
+	testInit()
+
+	binds := make([]*bind.Binding, 0, 2)
+	binds = append(binds, bind.Bind_Direct("s-mts-group", "message", "p2p", -1, true))
+	binds = append(binds, bind.Bind_Direct("s-mts-group", "trade", "pay-succ", -1, true))
+
+	// 	Api     client.KeysAPI
+	// Topics  []string
+	// Watcher IWatcher
+	watcher := &BindWatcher{Api: keyApi, Topics: topics, Watcher: &MockWatcher{}}
+	watcher.Watch()
+
+	// Api             client.KeysAPI
+	// PublishTopics   []string
+	// Hostport        string
+	// GroupId         string
+	// Bindings        []*bind.Binding
+	// KeepalivePeriod time.Duration
+	worker := &QClientWorker{Api: keyApi, PublishTopics: topics,
+		Hostport: "localhost:13001", GroupId: "s-mts-group",
+		Bindings: binds, KeepalivePeriod: 2 * time.Second}
+	running := true
 	go func() {
-		for {
+		for running {
 			worker.Keepalive()
 			time.Sleep(2 * time.Second)
 		}
 	}()
 
 	time.Sleep(10 * time.Second)
-	resp, err = keyApi.Get(context.Background(), qpath, &client.GetOptions{Recursive: true})
+
+	path := KITEQ_SUB + "/trade/" + "s-mts-group" + "-bind"
+
+	resp, err := keyApi.Get(context.Background(), path, &client.GetOptions{Recursive: true})
 	if nil != err {
 		t.Fail()
 		t.Log(err)
 		return
 	}
 
-	if resp.Node.Nodes.Len() <= 0 {
+	t.Log(resp.Node.Value)
+
+	//反序列化
+	subbinds, err := bind.UmarshalBinds([]byte(resp.Node.Value))
+
+	if nil != err {
 		t.Fail()
-		t.Logf("TestQServerWroker|Schedule Refresh|%s\n", resp.Node.Nodes)
+		t.Log(err)
+		return
 	}
 
-	for _, n := range resp.Node.Nodes {
-		t.Logf("%s,kiteqServer:%s", qpath, n.Key)
+	if len(subbinds) != 1 {
+		t.Fail()
+		t.Log(subbinds)
+		return
+	}
+
+	if subbinds[0].Topic != "trade" {
+		t.Fail()
+		t.Log(subbinds[0])
 	}
 
 }

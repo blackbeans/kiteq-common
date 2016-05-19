@@ -38,6 +38,9 @@ func NewRegistryCenter(uri string) *RegistryCenter {
 
 	} else if "etcd" == schema {
 		//etcd
+		if len(hosts) > 0 {
+			registry = NewRegistryCenter(hosts)
+		}
 
 	} else {
 		panic("Unsupport Registry [" + uri + "]")
