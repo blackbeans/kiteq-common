@@ -88,7 +88,7 @@ func (self *BindExchanger) Topic2Groups() map[string][]string {
 func (self *BindExchanger) PushQServer(hostport string, topics []string) bool {
 	err := self.registryCenter.PublishQServer(hostport, topics)
 	if nil != err {
-		log.ErrorLog("kite_bind", "BindExchanger|PushQServer|FAIL|%s|%s|%s\n", err, hostport, topics)
+		log.ErrorLog("kite_bind", "BindExchanger|PushQServer|FAIL|%s|%s|%s", err, hostport, topics)
 		return false
 	}
 
@@ -118,7 +118,7 @@ func (self *BindExchanger) PushQServer(hostport string, topics []string) bool {
 				delete(self.exchanger, t)
 			}
 		}()
-		log.InfoLog("kite_bind", "BindExchanger|UnpushlishQServer|SUCC|%s|%s\n", hostport, delTopics)
+		log.InfoLog("kite_bind", "BindExchanger|UnpushlishQServer|SUCC|%s|%s", hostport, delTopics)
 	}
 
 	//处理新增topic
@@ -144,7 +144,7 @@ func (self *BindExchanger) PushQServer(hostport string, topics []string) bool {
 	}()
 	//订阅订阅关系变更
 	succ := self.subscribeBinds(addedTopics)
-	log.InfoLog("kite_bind", "BindExchanger|PushQServer|SUCC|%s|%s\n", hostport, topics)
+	log.InfoLog("kite_bind", "BindExchanger|PushQServer|SUCC|%s|%s", hostport, topics)
 	return succ
 }
 
@@ -155,12 +155,12 @@ func (self *BindExchanger) subscribeBinds(topics []string) bool {
 	for _, topic := range topics {
 		binds, err := self.registryCenter.GetBindAndWatch(topic)
 		if nil != err {
-			log.ErrorLog("kite_bind", "BindExchanger|SubscribeBinds|FAIL|%s|%s\n", err, topic)
+			log.ErrorLog("kite_bind", "BindExchanger|SubscribeBinds|FAIL|%s|%s", err, topic)
 			return false
 		} else {
 			for groupId, bs := range binds {
 				self.onBindChanged(topic, groupId, bs)
-				log.InfoLog("kite_bind", "BindExchanger|SubscribeBinds|SUCC|%s|%s\n", topic, binds)
+				log.InfoLog("kite_bind", "BindExchanger|SubscribeBinds|SUCC|%s|%s", topic, binds)
 			}
 		}
 	}
@@ -213,7 +213,7 @@ func (self *BindExchanger) NodeChange(path string, eventType registry.RegistryEv
 		if len(split) < 4 {
 			if eventType == registry.Created {
 				//不合法的订阅璐姐
-				log.ErrorLog("kite_bind", "BindExchanger|NodeChange|INVALID SUB PATH |%s|%t\n", path, childNode)
+				log.ErrorLog("kite_bind", "BindExchanger|NodeChange|INVALID SUB PATH |%s|%t", path, childNode)
 			}
 			return
 		}
@@ -225,7 +225,7 @@ func (self *BindExchanger) NodeChange(path string, eventType registry.RegistryEv
 		//如果topic下无订阅分组节点，直接删除该topic
 		if len(childNode) <= 0 {
 			self.onBindChanged(topic, "", nil)
-			log.ErrorLog("kite_bind", "BindExchanger|NodeChange|无子节点|%s|%s\n", path, childNode)
+			log.ErrorLog("kite_bind", "BindExchanger|NodeChange|无子节点|%s|%s", path, childNode)
 			return
 		}
 
@@ -235,7 +235,7 @@ func (self *BindExchanger) NodeChange(path string, eventType registry.RegistryEv
 
 			bm, err := self.registryCenter.GetBindAndWatch(topic)
 			if nil != err {
-				log.ErrorLog("kite_bind", "BindExchanger|NodeChange|获取订阅关系失败|%s|%s\n", path, childNode)
+				log.ErrorLog("kite_bind", "BindExchanger|NodeChange|获取订阅关系失败|%s|%s", path, childNode)
 			}
 
 			//如果topic下没有订阅关系分组则青琉璃
@@ -250,7 +250,7 @@ func (self *BindExchanger) NodeChange(path string, eventType registry.RegistryEv
 		}
 
 	} else {
-		// log.Warn("BindExchanger|NodeChange|非SUB节点变更|%s|%s\n", path, childNode)
+		// log.Warn("BindExchanger|NodeChange|非SUB节点变更|%s|%s", path, childNode)
 	}
 }
 
@@ -269,7 +269,7 @@ func (self *BindExchanger) DataChange(path string, binds []*bind.Binding) {
 		self.onBindChanged(topic, groupId, binds)
 
 	} else {
-		log.WarnLog("kite_bind", "BindExchanger|DataChange|非SUB节点变更|%s\n", path)
+		log.WarnLog("kite_bind", "BindExchanger|DataChange|非SUB节点变更|%s", path)
 	}
 
 }
@@ -284,7 +284,7 @@ func (self *BindExchanger) onBindChanged(topic, groupId string, newbinds []*bind
 
 	//不是当前服务可以处理的topic则直接丢地啊哦
 	if sort.SearchStrings(self.topics, topic) == len(self.topics) {
-		log.WarnLog("kite_bind", "BindExchanger|onBindChanged|UnAccept Bindings|%s|%s|%s\n", topic, self.topics, newbinds)
+		log.WarnLog("kite_bind", "BindExchanger|onBindChanged|UnAccept Bindings|%s|%s|%s", topic, self.topics, newbinds)
 		return
 	}
 

@@ -36,7 +36,7 @@ func TestQServerWroker_Watcher(t *testing.T) {
 	testInit()
 
 	//watcher
-	watcher := &QServersWatcher{Api: keyApi, Topics: topics, Watcher: &MockWatcher{}}
+	watcher := &QServersWatcher{Api: keyApi, Topics: topics, Watcher: &MockWatcher{}, cancelWatch: false}
 	watcher.Watch()
 
 	// Hostport        string
@@ -114,7 +114,7 @@ func TestQClientWorker_Watcher(t *testing.T) {
 	// 	Api     client.KeysAPI
 	// Topics  []string
 	// Watcher IWatcher
-	watcher := &BindWatcher{Api: keyApi, Topics: topics, Watcher: &MockWatcher{}}
+	watcher := &BindWatcher{Api: keyApi, Topics: topics, Watcher: &MockWatcher{}, cancelWatch: false}
 	watcher.Watch()
 
 	// Api             client.KeysAPI
@@ -125,7 +125,8 @@ func TestQClientWorker_Watcher(t *testing.T) {
 	// KeepalivePeriod time.Duration
 	worker := &QClientWorker{Api: keyApi, PublishTopics: topics,
 		Hostport: "localhost:13001", GroupId: "s-mts-group",
-		Bindings: binds, KeepalivePeriod: 2 * time.Second}
+		Bindings: binds, KeepalivePeriod: 5 * time.Second}
+	worker.Start()
 	running := true
 	go func() {
 		for running {
@@ -136,25 +137,16 @@ func TestQClientWorker_Watcher(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 
-	path := KITEQ_SUB + "/trade/" + "s-mts-group" + "-bind"
-
-	resp, err := keyApi.Get(context.Background(), path, &client.GetOptions{Recursive: true})
-	if nil != err {
+	gb, ok := watcher.binds["trade"]
+	if !ok {
 		t.Fail()
-		t.Log(err)
+		t.Log("--------watch trade --------")
 		return
 	}
 
-	t.Log(resp.Node.Value)
+	t.Logf("bind:%v", gb)
 
-	//反序列化
-	subbinds, err := bind.UmarshalBinds([]byte(resp.Node.Value))
-
-	if nil != err {
-		t.Fail()
-		t.Log(err)
-		return
-	}
+	subbinds := gb["s-mts-group"]
 
 	if len(subbinds) != 1 {
 		t.Fail()

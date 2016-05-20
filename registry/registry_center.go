@@ -14,10 +14,9 @@ type RegistryCenter struct {
 //  ectd://localhost:2181,localhost:2181?timeout=50s
 func NewRegistryCenter(uri string) *RegistryCenter {
 	var registry Registry
-
-	split := strings.Split(uri, "://")
-	schema := split[0]
-	p := strings.Split(split[1], "?")
+	startIdx := strings.Index(uri, "://")
+	schema := uri[0:startIdx]
+	p := strings.Split(uri[startIdx+3:], "?")
 	hosts := p[0]
 	if len(p) > 1 {
 		data := strings.Split(p[1], "&")
@@ -39,15 +38,16 @@ func NewRegistryCenter(uri string) *RegistryCenter {
 	} else if "etcd" == schema {
 		//etcd
 		if len(hosts) > 0 {
-			registry = NewRegistryCenter(hosts)
+			registry = NewEtcdRegistry(hosts)
 		}
 
 	} else {
 		panic("Unsupport Registry [" + uri + "]")
 	}
 
-	registry.Start()
-	return &RegistryCenter{registry: registry}
+	center := &RegistryCenter{registry: registry}
+	center.Start()
+	return center
 
 }
 

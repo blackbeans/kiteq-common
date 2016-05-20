@@ -15,16 +15,11 @@ func init() {
 	etcdRegistry.Start()
 }
 
-// func registryInit() {
-// 	etcdRegistry.api.Delete(context.Background(), "/kiteq", &client.DeleteOptions{Recursive: true})
-// 	etcdRegistry.PublishQServer("localhost:13000", []string{"trade"})
-// 	time.Sleep(5 * time.Second)
-// }
-
 //publish/unpublish qserver and watch test
 func TestEtcdPublish_UnPublish_QServer(t *testing.T) {
 
 	etcdRegistry.api.Delete(context.Background(), "/kiteq", &client.DeleteOptions{Recursive: true})
+	time.Sleep(100 * time.Millisecond)
 	etcdRegistry.PublishQServer("localhost:13000", []string{"trade"})
 	time.Sleep(1 * time.Second)
 

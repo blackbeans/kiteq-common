@@ -6,7 +6,6 @@ import (
 	log "github.com/blackbeans/log4go"
 	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
-
 	"strings"
 	"time"
 )
@@ -46,6 +45,22 @@ func (self *EtcdRegistry) Start() {
 	self.session = etcConn
 	self.api = api
 
+	//create root
+
+	_, err = self.api.Set(context.Background(), KITEQ, "", &client.SetOptions{Dir: true})
+	if nil != err {
+		log.ErrorLog("kiteq_registry", "QClientWorker|Start|FAIL|%s|%s", KITEQ, err)
+	}
+
+	_, err = self.api.Set(context.Background(), KITEQ_PUB, "", &client.SetOptions{Dir: true})
+	if nil != err {
+		log.ErrorLog("kiteq_registry", "QClientWorker|Start|FAIL|%s|%s", KITEQ_PUB, err)
+	}
+	_, err = self.api.Set(context.Background(), KITEQ_SUB, "", &client.SetOptions{Dir: true})
+	if nil != err {
+		log.ErrorLog("kiteq_registry", "QClientWorker|Start|FAIL|%s|%s", KITEQ_SUB, err)
+	}
+
 	go self.heartbeat()
 	go self.checkAlive()
 
@@ -72,7 +87,7 @@ func (self *EtcdRegistry) heartbeat() {
 }
 
 // //如果返回false则已经存在
-func (self *EtcdRegistry) RegisteWather(rootpath string, w IWatcher) bool {
+func (self *EtcdRegistry) RegisteWatcher(rootpath string, w IWatcher) bool {
 	_, ok := self.wathcers[rootpath]
 	if ok {
 		return false
@@ -117,7 +132,7 @@ func (self *EtcdRegistry) PublishTopics(topics []string, groupId string, hostpor
 	// Bindings        []*bind.Binding
 	// KeepalivePeriod time.Duration
 	worker := &QClientWorker{Api: self.api, PublishTopics: topics, Hostport: hostport,
-		GroupId: groupId, Bindings: []*bind.Binding{}, KeepalivePeriod: 1 * time.Hour}
+		GroupId: groupId, Bindings: []*bind.Binding{}, KeepalivePeriod: 5 * time.Second}
 
 	self.workerlink.PushBack(worker)
 	return nil
@@ -129,8 +144,8 @@ func (self *EtcdRegistry) GetQServerAndWatch(topic string) ([]string, error) {
 	path := KITEQ_SERVER + "/" + topic
 
 	for k, watcher := range self.wathcers {
-		if strings.HasPrefix(k, path) {
-			qw := &QServersWatcher{Api: self.api, Topics: topics, Watcher: watcher}
+		if strings.HasPrefix(path, k) {
+			qw := &QServersWatcher{Api: self.api, Topics: []string{topic}, Watcher: watcher, cancelWatch: false}
 			qw.Watch()
 			self.watcherlink.PushBack(qw)
 		}
@@ -172,15 +187,17 @@ func (self *EtcdRegistry) PublishBindings(groupId string, bindings []*bind.Bindi
 func (self *EtcdRegistry) GetBindAndWatch(topic string) (map[string][]*bind.Binding, error) {
 
 	path := KITEQ_SUB + "/" + topic
+
 	//scan and attach watcher
 	for k, watcher := range self.wathcers {
-		if strings.HasPrefix(k, path) {
+		if strings.HasPrefix(path, k) {
 			// Api     client.KeysAPI
 			// Topics  []string
 			// Watcher IWatcher
 			qw := &BindWatcher{Api: self.api,
-				Topics:  []string{topic},
-				Watcher: watcher}
+				Topics:      []string{topic},
+				Watcher:     watcher,
+				cancelWatch: false}
 			qw.Watch()
 			self.watcherlink.PushBack(qw)
 		}
@@ -233,4 +250,7 @@ func (self *EtcdRegistry) getBindData(path string) ([]*bind.Binding, error) {
 
 func (self *EtcdRegistry) Close() {
 	self.isClosed = true
+	for e := self.watcherlink.Back(); nil != e; e = e.Prev() {
+		e.Prev().Value.(EtcdWatcher).Stop()
+	}
 }
