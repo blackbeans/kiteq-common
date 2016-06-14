@@ -12,7 +12,7 @@ import (
 
 func TestFileStoreQuery(t *testing.T) {
 	cleanSnapshot("./snapshot/")
-	fs := NewKiteFileStore(".", 5000000, 1*time.Second)
+	fs := NewKiteFileStore(".", 1000, 5000000, 1*time.Second)
 	fs.Start()
 
 	for i := 0; i < 100; i++ {
@@ -53,7 +53,7 @@ func TestFileStoreQuery(t *testing.T) {
 
 func TestFileStoreCommit(t *testing.T) {
 	cleanSnapshot("./snapshot/")
-	fs := NewKiteFileStore(".", 5000000, 1*time.Second)
+	fs := NewKiteFileStore(".", 1000, 5000000, 1*time.Second)
 	fs.Start()
 
 	for i := 0; i < 100; i++ {
@@ -97,7 +97,7 @@ func TestFileStoreCommit(t *testing.T) {
 
 func TestFileStoreUpdate(t *testing.T) {
 	cleanSnapshot("./snapshot/")
-	fs := NewKiteFileStore(".", 5000000, 1*time.Second)
+	fs := NewKiteFileStore(".", 1000, 5000000, 1*time.Second)
 	fs.Start()
 
 	for i := 0; i < 100; i++ {
@@ -155,7 +155,7 @@ func TestFileStoreUpdate(t *testing.T) {
 func TestFileStoreDelete(t *testing.T) {
 
 	cleanSnapshot("./snapshot/")
-	fs := NewKiteFileStore(".", 5000000, 1*time.Second)
+	fs := NewKiteFileStore(".", 1000, 5000000, 1*time.Second)
 	fs.Start()
 
 	for i := 0; i < 100; i++ {
@@ -206,7 +206,7 @@ func TestFileStoreDelete(t *testing.T) {
 func TestFileStoreInit(t *testing.T) {
 
 	cleanSnapshot("./snapshot/")
-	fs := NewKiteFileStore(".", 5000000, 1*time.Second)
+	fs := NewKiteFileStore(".", 1000, 5000000, 1*time.Second)
 	fs.Start()
 
 	for i := 0; i < 100; i++ {
@@ -239,7 +239,7 @@ func TestFileStoreInit(t *testing.T) {
 	fs.Stop()
 
 	log.Println("-------------------Query")
-	fs = NewKiteFileStore(".", 5000000, 1*time.Second)
+	fs = NewKiteFileStore(".", 1000, 5000000, 1*time.Second)
 	fs.Start()
 
 	// for _, v := range fs.oplogs {
