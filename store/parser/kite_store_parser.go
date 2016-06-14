@@ -17,7 +17,7 @@ import (
 //  mysql   mysql://master:3306,slave:3306?db=kite&username=root&password=root&maxConn=500&batchUpdateSize=1000&batchDelSize=1000&flushSeconds=1
 //  file    file:///path?cap=10000000&checkSeconds=60&flushBatchSize=1000
 
-func parseDB(db string, serverName string) store.IKiteStore {
+func ParseDB(db string, serverName string) store.IKiteStore {
 	var kitedb store.IKiteStore
 	if strings.HasPrefix(db, "mock://") {
 		kitedb = &store.MockKiteStore{}
