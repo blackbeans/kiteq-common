@@ -233,7 +233,6 @@ func (self *MessageStore) load() {
 	sort.Sort(self.segments)
 	//recover snapshost
 	self.recoverSnapshot()
-
 	//check roll
 	self.checkRoll()
 
@@ -282,6 +281,11 @@ func (self *MessageStore) recoverSnapshot() {
 		if len(removes) > 0 {
 			self.remove(removes)
 		}
+	}
+
+	//check init chunkId
+	if len(self.segments) <= 0 {
+		self.chunkId = -1
 	}
 }
 
