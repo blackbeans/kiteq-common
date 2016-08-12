@@ -259,19 +259,23 @@ func (self *MessageStore) recoverSnapshot() {
 			if normal <= 0 || total == (del+expired) {
 				removes = append(removes, s)
 				removeCount++
-			} else {
-				//last segments
-				if i == len(self.segments)-1 {
-					if nil != err {
-						panic("MessageStore|Load Last Segment|FAIL|" + err.Error())
-					}
+			}
+			//last segments
+			if i == len(self.segments)-1 {
+				if nil != err {
+					panic("MessageStore|Load Last Segment|FAIL|" + err.Error())
+				}
 
-					//set snapshost status
-					if len(s.chunks) > 0 {
-						self.chunkId = s.chunks[len(s.chunks)-1].id
-					}
+				//set snapshost status
+				if len(s.chunks) > 0 {
+					self.chunkId = s.chunks[len(s.chunks)-1].id
+				}
+
+				if self.chunkId <= 0 {
+					self.chunkId = s.sid
 				}
 			}
+
 			log.DebugLog("kite_store", "MessageStore|recoverSnapshot|%s", s.name)
 		}
 
@@ -433,27 +437,29 @@ func (self *MessageStore) checkRoll() (*Segment, int64) {
 		create := (s.byteSize > MAX_SEGMENT_SIZE)
 		self.RUnlock()
 
-		if create {
-			self.Lock()
-			defer self.Unlock()
-			s = self.segments[len(self.segments)-1]
-			create := (s.byteSize > MAX_SEGMENT_SIZE)
+		func() {
 			if create {
-				news, err := self.createSegment(nid)
-				func() {
-					if nil == err {
-						//append new
-						self.segments = append(self.segments, news)
-						s = news
-					} else {
-						panic(err)
-					}
-				}()
-			}
+				self.Lock()
+				defer self.Unlock()
+				s = self.segments[len(self.segments)-1]
+				create := (s.byteSize > MAX_SEGMENT_SIZE)
+				if create {
+					news, err := self.createSegment(nid)
+					func() {
+						if nil == err {
+							//append new
+							self.segments = append(self.segments, news)
+							s = news
+						} else {
+							panic(err)
+						}
+					}()
+				}
 
-		} else {
-			//don't need createSegment
-		}
+			} else {
+				//don't need createSegment
+			}
+		}()
 	} else {
 		func() {
 			self.Lock()
