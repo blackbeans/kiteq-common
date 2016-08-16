@@ -8,6 +8,7 @@ import (
 
 func TestZkPublishQServer(t *testing.T) {
 	zkmanager := NewZKManager("localhost:2181")
+	zkmanager.Start()
 	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
@@ -66,6 +67,7 @@ func TestZkPublishTopic(t *testing.T) {
 
 	topics := []string{"trade", "feed", "comment"}
 	zkmanager := NewZKManager("localhost:2181")
+	zkmanager.Start()
 	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
@@ -83,6 +85,7 @@ func TestZkPublishTopic(t *testing.T) {
 func TestZkSubscribeTopic(t *testing.T) {
 
 	zkmanager := NewZKManager("localhost:2181")
+	zkmanager.Start()
 	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
