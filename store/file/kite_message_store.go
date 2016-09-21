@@ -271,7 +271,7 @@ func (self *MessageStore) recoverSnapshot() {
 				}
 
 				if self.chunkId <= 0 {
-					self.chunkId = s.sid
+					self.chunkId = s.sid - 1
 				}
 			}
 

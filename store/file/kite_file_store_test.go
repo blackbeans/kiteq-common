@@ -80,6 +80,38 @@ func BenchmarkTestFileAppend(t *testing.B) {
 
 }
 
+func TestFileDuplicateAppend(t *testing.T) {
+	cleanSnapshot("./snapshot/")
+	fs := NewKiteFileStore(".", 1000, 5000000, 1*time.Second)
+	fs.Start()
+	for i := 0; i < 10; i++ {
+		//创建消息
+		msg := &protocol.BytesMessage{}
+		msg.Header = &protocol.Header{
+			MessageId:    proto.String("26c03f00665862591f696a980b5ac"),
+			Topic:        proto.String("trade"),
+			MessageType:  proto.String("pay-succ"),
+			ExpiredTime:  proto.Int64(time.Now().Add(10 * time.Minute).Unix()),
+			DeliverLimit: proto.Int32(100),
+			GroupId:      proto.String("go-kite-test"),
+			Commit:       proto.Bool(false),
+			Fly:          proto.Bool(false)}
+		msg.Body = []byte("hello world")
+
+		entity := store.NewMessageEntity(protocol.NewQMessage(msg))
+		succ := fs.Save(entity)
+		if i == 0 && !succ {
+			t.Fail()
+			return
+		}
+
+		if i > 0 && succ {
+			return
+		}
+	}
+
+}
+
 func TestFileStoreCommit(t *testing.T) {
 	cleanSnapshot("./snapshot/")
 	fs := NewKiteFileStore(".", 1000, 5000000, 1*time.Second)

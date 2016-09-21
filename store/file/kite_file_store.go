@@ -292,6 +292,14 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 		return false
 	} else {
 
+		//get lock
+		lock.Lock()
+		_, ok := ol[entity.MessageId]
+		if ok {
+			//duplicate messageId
+			lock.Unlock()
+			return false
+		}
 		//value
 		data := protocol.MarshalMessage(entity.Header, entity.MsgType, entity.GetBody())
 		buff := make([]byte, len(data)+1)
@@ -312,6 +320,7 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 		obd, err := json.Marshal(ob)
 		if nil != err {
 			log.ErrorLog("kite_store", "KiteFileStore|Save|Encode|Op|FAIL|%s", err)
+			lock.Unlock()
 			return false
 		}
 
@@ -321,8 +330,6 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 		idchan := self.snapshot.Append(cmd)
 		ob.saveDone = idchan
 
-		//get lock
-		lock.Lock()
 		//push
 		e := link.PushBack(ob)
 		ol[entity.MessageId] = e
