@@ -294,10 +294,11 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 
 		//get lock
 		lock.Lock()
+		defer lock.Unlock()
 		_, ok := ol[entity.MessageId]
 		if ok {
 			//duplicate messageId
-			lock.Unlock()
+			log.ErrorLog("kite_store", "KiteFileStore|Save|Duplicate MessageId|%s", entity.Header)
 			return false
 		}
 		//value
@@ -320,7 +321,6 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 		obd, err := json.Marshal(ob)
 		if nil != err {
 			log.ErrorLog("kite_store", "KiteFileStore|Save|Encode|Op|FAIL|%s", err)
-			lock.Unlock()
 			return false
 		}
 
@@ -333,7 +333,6 @@ func (self *KiteFileStore) Save(entity *MessageEntity) bool {
 		//push
 		e := link.PushBack(ob)
 		ol[entity.MessageId] = e
-		lock.Unlock()
 		return true
 	}
 
