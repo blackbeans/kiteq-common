@@ -3,7 +3,6 @@ package protocol
 import (
 	log "github.com/blackbeans/log4go"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/snappy"
 )
 
 type QMessage struct {
@@ -20,6 +19,7 @@ func NewQMessage(msg interface{}) *QMessage {
 		return nil
 	}
 
+	//bytesmessage
 	bm, bok := message.(*BytesMessage)
 	if bok {
 		return &QMessage{
@@ -27,18 +27,18 @@ func NewQMessage(msg interface{}) *QMessage {
 			header:  bm.GetHeader(),
 			body:    bm.GetBody(),
 			message: message}
-	} else {
-		sm, mok := message.(*StringMessage)
-		if mok {
-			return &QMessage{
-				msgType: CMD_STRING_MESSAGE,
-				header:  sm.GetHeader(),
-				body:    sm.GetBody(),
-				message: message}
-		}
+	}
+
+	//stringmessage
+	sm, mok := message.(*StringMessage)
+	if mok {
+		return &QMessage{
+			msgType: CMD_STRING_MESSAGE,
+			header:  sm.GetHeader(),
+			body:    sm.GetBody(),
+			message: message}
 	}
 	return nil
-
 }
 
 func (self *QMessage) GetHeader() *Header {
@@ -206,30 +206,4 @@ func (self *TxResponse) Commit() {
 func (self *TxResponse) ConvertTxAckPacket(packet *TxACKPacket) {
 	packet.Status = proto.Int32(int32(self.status))
 	packet.Feedback = proto.String(self.feedback)
-}
-
-//snappy解压缩
-func Decompress(src []byte) ([]byte, error) {
-	l, err := snappy.DecodedLen(src)
-	if nil != err {
-		return nil, err
-	}
-	if l%256 != 0 {
-		l = (l/256 + 1) * 256
-	}
-	dest := make([]byte, l)
-	decompressData, err := snappy.Decode(dest, src)
-	return decompressData, err
-}
-
-//snapp压缩
-func Compress(src []byte) []byte {
-	l := snappy.MaxEncodedLen(len(src))
-	if l%256 != 0 {
-		l = (l/256 + 1) * 256
-	}
-
-	dest := make([]byte, l)
-	compressData := snappy.Encode(dest, src)
-	return compressData
 }
