@@ -1,9 +1,8 @@
 package registry
 
 import (
-	"github.com/blackbeans/kiteq-common/registry/bind"
-	"github.com/coreos/etcd/client"
-	"golang.org/x/net/context"
+	"context"
+	"go.etcd.io/etcd/client"
 	"testing"
 	"time"
 )
@@ -76,9 +75,9 @@ func TestEtcdSubscribe_QServer(t *testing.T) {
 
 	etcdRegistry.api.Delete(context.Background(), "/kiteq", &client.DeleteOptions{Recursive: true})
 
-	binds := make([]*bind.Binding, 0, 2)
-	binds = append(binds, bind.Bind_Direct("s-mts-group", "message", "p2p", -1, true))
-	binds = append(binds, bind.Bind_Direct("s-mts-group", "trade", "pay-succ", -1, true))
+	binds := make([]*Binding, 0, 2)
+	binds = append(binds, Bind_Direct("s-mts-group", "message", "p2p", -1, true))
+	binds = append(binds, Bind_Direct("s-mts-group", "trade", "pay-succ", -1, true))
 	etcdRegistry.PublishBindings("s-mts-group", binds)
 
 	time.Sleep(5 * time.Second)
@@ -97,8 +96,8 @@ func TestEtcdSubscribe_QServer(t *testing.T) {
 
 	t.Logf("TestEtcdSubscribe_QServer|GetBindAndWatch|SUCC|%v\n", bindings)
 	t.Log("------------Add New Binding :s-mts-group-2  Test Watch---------")
-	binds = make([]*bind.Binding, 0, 2)
-	binds = append(binds, bind.Bind_Direct("s-mts-group-2", "trade", "pay-succ", -1, true))
+	binds = make([]*Binding, 0, 2)
+	binds = append(binds, Bind_Direct("s-mts-group-2", "trade", "pay-succ", -1, true))
 	etcdRegistry.PublishBindings("s-mts-group-2", binds)
 	time.Sleep(5 * time.Second)
 

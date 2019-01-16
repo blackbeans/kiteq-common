@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"github.com/blackbeans/kiteq-common/registry/bind"
 	"testing"
 	"time"
 )
@@ -89,8 +88,8 @@ func TestZkSubscribeTopic(t *testing.T) {
 	zkmanager.RegisteWatcher("/kiteq", &MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
-	persistentBind := []*bind.Binding{bind.Bind_Direct("s-trade-g", "trade", "trade-succ", -1, true)}
-	tmpBind := []*bind.Binding{bind.Bind_Direct("s-trade-g", "trade-temp", "trade-fail", -1, false)}
+	persistentBind := []*Binding{Bind_Direct("s-trade-g", "trade", "trade-succ", -1, true)}
+	tmpBind := []*Binding{Bind_Direct("s-trade-g", "trade-temp", "trade-fail", -1, false)}
 
 	err := zkmanager.PublishBindings("s-trade-g", persistentBind)
 	if nil != err {

@@ -1,9 +1,8 @@
 package registry
 
 import (
-	"github.com/blackbeans/kiteq-common/registry/bind"
-	"github.com/coreos/etcd/client"
-	"golang.org/x/net/context"
+	"context"
+	"go.etcd.io/etcd/client"
 	"testing"
 	"time"
 )
@@ -107,9 +106,9 @@ func TestQClientWorker_Watcher(t *testing.T) {
 
 	testInit()
 
-	binds := make([]*bind.Binding, 0, 2)
-	binds = append(binds, bind.Bind_Direct("s-mts-group", "message", "p2p", -1, true))
-	binds = append(binds, bind.Bind_Direct("s-mts-group", "trade", "pay-succ", -1, true))
+	binds := make([]*Binding, 0, 2)
+	binds = append(binds, Bind_Direct("s-mts-group", "message", "p2p", -1, true))
+	binds = append(binds, Bind_Direct("s-mts-group", "trade", "pay-succ", -1, true))
 
 	// 	Api     client.KeysAPI
 	// Topics  []string
@@ -121,7 +120,7 @@ func TestQClientWorker_Watcher(t *testing.T) {
 	// PublishTopics   []string
 	// Hostport        string
 	// GroupId         string
-	// Bindings        []*bind.Binding
+	// Bindings        []*Binding
 	// KeepalivePeriod time.Duration
 	worker := &QClientWorker{Api: keyApi, PublishTopics: topics,
 		Hostport: "localhost:13001", GroupId: "s-mts-group",
