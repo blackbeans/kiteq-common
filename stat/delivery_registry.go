@@ -1,66 +1,38 @@
 package stat
 
 import (
-	"github.com/golang/groupcache/lru"
+	"github.com/blackbeans/turbo"
 	"time"
 )
 
 //投递注册器
 type DeliveryRegistry struct {
-	registry []*lru.Cache //key为messageId-->value为过期时间
-	locks    []chan bool
+	registry *turbo.LRUCache //key为messageId-->value为过期时间
 }
 
-/*
-*
-*
- */
 func NewDeliveryRegistry(capacity int) *DeliveryRegistry {
-
-	maxCapacity := capacity / 16
-	locks := make([]chan bool, 0, 16)
-	for i := 0; i < 16; i++ {
-		locks = append(locks, make(chan bool, 1))
-	}
-
-	registry := make([]*lru.Cache, 0, 16)
-	for i := 0; i < 16; i++ {
-		cache := lru.New(maxCapacity)
-		registry = append(registry, cache)
-	}
-
-	return &DeliveryRegistry{registry: registry, locks: locks}
+	tw := turbo.NewTimerWheel(100*time.Millisecond, 10)
+	registry := turbo.NewLRUCache(capacity, tw, nil)
+	return &DeliveryRegistry{registry: registry}
 }
 
 /*
 *注册投递事件
 **/
 func (self DeliveryRegistry) Registe(messageId string, exp time.Duration) bool {
-	hashKey := messageId[len(messageId)-1]
-	hashKey = hashKey % 16
-	ch := self.locks[hashKey]
-	defer func() { <-ch }()
-	ch <- true
-	//过期或者不存在在直接覆盖设置
-	val, ok := self.registry[hashKey].Get(messageId)
 	now := time.Now()
+	//过期或者不存在在直接覆盖设置
 	expiredTime := now.Add(exp)
-	if !ok || time.Time(val.(time.Time)).Before(now) {
-		self.registry[hashKey].Add(messageId, expiredTime)
+	exist, ok := self.registry.Get(messageId)
+	if !ok || time.Time(exist.(time.Time)).Before(now) {
+		self.registry.Put(messageId, expiredTime, exp)
 		return true
-	} else {
-		//如果不存在
-		return false
 	}
 
+	return false
 }
 
 //取消注册
 func (self DeliveryRegistry) UnRegiste(messageId string) {
-	hashKey := messageId[len(messageId)-1]
-	hashKey = hashKey % 16
-	ch := self.locks[hashKey]
-	defer func() { <-ch }()
-	ch <- true
-	self.registry[hashKey].Remove(messageId)
+	self.registry.Remove(messageId)
 }
