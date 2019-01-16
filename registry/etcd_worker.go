@@ -2,7 +2,6 @@ package registry
 
 import (
 	"context"
-	"github.com/blackbeans/kiteq-common/registry/bind"
 	log "github.com/blackbeans/log4go"
 	"go.etcd.io/etcd/client"
 	"strings"
