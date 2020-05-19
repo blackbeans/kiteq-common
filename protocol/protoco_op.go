@@ -28,6 +28,28 @@ const (
 	RESP_STATUS_TIMEOUT = 501
 )
 
+func NameOfCmd(cmdType uint8) string {
+	switch cmdType {
+	case CMD_HEARTBEAT:
+		return "HEARTBEAT"
+	case CMD_CONN_META:
+		return "CONN_META"
+	case CMD_CONN_AUTH:
+		return "CONN_AUTH"
+	case CMD_MESSAGE_STORE_ACK:
+		return "MESSAGE_STORE_ACK"
+	case CMD_DELIVER_ACK:
+		return "DELIVER_ACK"
+	case CMD_TX_ACK:
+		return "TX_ACK"
+	case CMD_BYTES_MESSAGE:
+		return "BYTES_MESSAGE"
+	case CMD_STRING_MESSAGE:
+		return "STRING_MESSAGE"
+	default:
+		return "UNKNOWN"
+	}
+}
 
 //kite的序列化
 type KiteQBytesCodec struct {
@@ -41,5 +63,5 @@ func (self KiteQBytesCodec) UnmarshalPayload(p *turbo.Packet) (interface{}, erro
 
 //序列化
 func (self KiteQBytesCodec) MarshalPayload(p *turbo.Packet) ([]byte, error) {
-	return p.Data,nil
+	return p.Data, nil
 }
