@@ -25,6 +25,8 @@ type Binding struct {
 	Version     string   `json:"version"`
 	Watermark   int32    `json:"watermark"`  //本分组订阅的流量
 	Persistent  bool     `json:"persistent"` //是否为持久订阅 即在客户端不在线的时候也需要推送消息
+	//绑定的处理器
+	Handler func(message interface{}) (bool, error) `json:"-"`
 }
 
 //只要两个的groupId和topic相同就认为是重复了，
@@ -72,6 +74,12 @@ func (self *Binding) Matches(topic string, messageType string) bool {
 		//直接订阅的直接返回topic+messageType相同
 		return self.Topic == topic && self.MessageType == messageType
 	}
+}
+
+//增加handler的处理方法，针对客户端使用
+func (self *Binding) WithHandler(fn func(message interface{}) (bool, error)) *Binding {
+	self.Handler = fn
+	return self
 }
 
 func UmarshalBinds(bind []byte) ([]*Binding, error) {
