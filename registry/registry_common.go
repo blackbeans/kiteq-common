@@ -1,7 +1,7 @@
 package registry
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -79,9 +79,9 @@ func (self *MockWatcher) DataChange(path string, binds []*Binding) {
 		}
 
 		//开始处理变化的订阅关系
-		log.Printf("MockWatcher|DataChange|SUB节点变更|%s|%v\n", path, binds)
+		log.Infof("MockWatcher|DataChange|SUB节点变更|%s|%v", path, binds)
 	} else {
-		log.Printf("MockWatcher|DataChange|非SUB节点变更|%s\n", path)
+		log.Infof("MockWatcher|DataChange|非SUB节点变更|%s", path)
 	}
 
 	return
@@ -96,12 +96,12 @@ func (self *MockWatcher) NodeChange(path string, eventType RegistryEvent, childN
 		split := strings.Split(path, "/")
 		if len(split) < 4 {
 			//不合法的订阅璐姐
-			log.Printf("MockWatcher|NodeChange|INVALID SUB PATH |%s|%d|%v", path, eventType, childNode)
+			log.Infof("MockWatcher|NodeChange|INVALID SUB PATH |%s|%d|%v", path, eventType, childNode)
 			return
 		}
-		log.Printf("MockWatcher|NodeChange|SUB节点变更||%s|%d|%v", path, eventType, childNode)
+		log.Infof("MockWatcher|NodeChange|SUB节点变更||%s|%d|%v", path, eventType, childNode)
 	} else {
-		log.Printf("MockWatcher|NodeChange|节点变更||%s|%d|%v", path, eventType, childNode)
+		log.Infof("MockWatcher|NodeChange|节点变更||%s|%d|%v", path, eventType, childNode)
 	}
 	return
 }

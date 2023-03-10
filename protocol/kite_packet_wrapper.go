@@ -1,8 +1,8 @@
 package protocol
 
 import (
-	log "github.com/blackbeans/log4go"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 )
 
 type QMessage struct {
@@ -86,7 +86,7 @@ func MarshalMessage(header *Header, msgType uint8, body interface{}) []byte {
 
 		data, err := proto.Marshal(message)
 		if nil != err {
-			log.Error("MarshalMessage|%s|%d|%s\n", header, msgType, err)
+			log.Errorf("MarshalMessage|%s|%d|%v", header, msgType, err)
 		}
 		return data
 	case CMD_STRING_MESSAGE:
@@ -95,7 +95,7 @@ func MarshalMessage(header *Header, msgType uint8, body interface{}) []byte {
 		message.Body = proto.String(body.(string))
 		data, err := proto.Marshal(message)
 		if nil != err {
-			log.Error("MarshalMessage|%s|%d|%s\n", header, msgType, err)
+			log.Errorf("MarshalMessage|%s|%d|%v", header, msgType, err)
 		}
 		return data
 	}

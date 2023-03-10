@@ -2,7 +2,7 @@ package registry
 
 import (
 	"github.com/blackbeans/go-zookeeper/zk"
-	log "github.com/blackbeans/log4go"
+	log "github.com/sirupsen/logrus"
 	_ "net"
 	"strings"
 	"time"
@@ -23,10 +23,10 @@ func NewZKManager(zkhosts string) *ZKManager {
 
 func (self *ZKManager) Start() {
 	if len(self.zkhosts) <= 0 {
-		log.WarnLog("kiteq_registry", "使用默认zkhosts！|localhost:2181\n")
+		log.Warn("使用默认zkhosts！|localhost:2181")
 		self.zkhosts = "localhost:2181"
 	} else {
-		log.Info("使用zkhosts:[%s]！\n", self.zkhosts)
+		log.Infof("使用zkhosts:[%s]!", self.zkhosts)
 	}
 
 	ss, eventChan, err := zk.Connect(strings.Split(self.zkhosts, ","), 5*time.Second)
@@ -48,7 +48,7 @@ func (self *ZKManager) Start() {
 			ss.Close()
 			panic("NewZKManager|CREATE ROOT PATH|FAIL|" + KITEQ + "|" + err.Error())
 		} else {
-			log.InfoLog("kiteq_registry", "NewZKManager|CREATE ROOT PATH|SUCC|%s", resp)
+			log.Infof("NewZKManager|CREATE ROOT PATH|SUCC|%s", resp)
 		}
 	}
 
@@ -90,7 +90,7 @@ func (self *ZKManager) listenEvent() {
 
 		//如果没有wacher那么久忽略
 		if nil == watcher {
-			log.WarnLog("kiteq_registry", "ZKManager|listenEvent|NO  WATCHER|%s", path)
+			log.Warnf("ZKManager|listenEvent|NO  WATCHER|%s", path)
 			continue
 		}
 
@@ -98,7 +98,7 @@ func (self *ZKManager) listenEvent() {
 		case zk.EventSession:
 			if change.State == zk.StateExpired ||
 				change.State == zk.StateDisconnected {
-				log.WarnLog("kiteq_registry", "ZKManager|OnSessionExpired!|Reconnect Zk ....")
+				log.Warnf("ZKManager|OnSessionExpired!|Reconnect Zk ....")
 
 				//session失效必须通知所有的watcher
 				func() {
@@ -112,14 +112,14 @@ func (self *ZKManager) listenEvent() {
 		case zk.EventNodeDeleted:
 			self.session.ExistsW(path)
 			watcher.NodeChange(path, RegistryEvent(change.Type), []string{})
-			// log.Info("ZKManager|listenEvent|%s|%s\n", path, change)
+			// log.Info("ZKManager|listenEvent|%s|%s", path, change)
 		case zk.EventNodeCreated, zk.EventNodeChildrenChanged:
 			childnodes, _, _, err := self.session.ChildrenW(path)
 			if nil != err {
-				log.ErrorLog("kiteq_registry", "ZKManager|listenEvent|CD|%s|%s|%t\n", err, path, change.Type)
+				log.Errorf("ZKManager|listenEvent|CD|%s|%s|%t", err, path, change.Type)
 			} else {
 				watcher.NodeChange(path, RegistryEvent(change.Type), childnodes)
-				// log.Info("ZKManager|listenEvent|%s|%s|%s\n", path, change, childnodes)
+				// log.Info("ZKManager|listenEvent|%s|%s|%s", path, change, childnodes)
 			}
 
 		case zk.EventNodeDataChanged:
@@ -131,12 +131,12 @@ func (self *ZKManager) listenEvent() {
 			//获取一下数据
 			binds, err := self.getBindData(path)
 			if nil != err {
-				log.ErrorLog("kiteq_registry", "ZKManager|listenEvent|Changed|Get DATA|FAIL|%s|%s\n", err, path)
+				log.Errorf("ZKManager|listenEvent|Changed|Get DATA|FAIL|%s|%s", err, path)
 				//忽略
 				continue
 			}
 			watcher.DataChange(path, binds)
-			// log.Info("ZKManager|listenEvent|%s|%s|%s\n", path, change, binds)
+			// log.Info("ZKManager|listenEvent|%s|%s|%s", path, change, binds)
 
 		}
 
@@ -153,9 +153,9 @@ func (self *ZKManager) UnpushlishQServer(hostport string, topics []string) {
 		//删除当前该Topic下的本机
 		err := self.session.Delete(qpath, -1)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|UnpushlishQServer|FAIL|%s|%s\n", err, qpath)
+			log.Errorf("ZKManager|UnpushlishQServer|FAIL|%s|%s", err, qpath)
 		} else {
-			log.InfoLog("kiteq_registry", "ZKManager|UnpushlishQServer|SUCC|%s\n", qpath)
+			log.Infof("ZKManager|UnpushlishQServer|SUCC|%s", qpath)
 		}
 	}
 	//注册当前的kiteqserver
@@ -182,10 +182,10 @@ func (self *ZKManager) PublishQServer(hostport string, topics []string) error {
 		//注册当前节点
 		path, err := self.registePath(qpath, hostport, zk.CreateEphemeral, nil)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|PublishQServer|FAIL|%s|%s/%s\n", err, qpath, hostport)
+			log.Errorf("ZKManager|PublishQServer|FAIL|%s|%s/%s", err, qpath, hostport)
 			return err
 		}
-		log.InfoLog("kiteq_registry", "ZKManager|PublishQServer|SUCC|%s\n", path)
+		log.Infof("ZKManager|PublishQServer|SUCC|%s", path)
 	}
 
 	//注册当前的kiteqserver
@@ -202,10 +202,10 @@ func (self *ZKManager) PublishTopics(topics []string, groupId string, hostport s
 		pubPath := KITEQ_PUB + "/" + topic + "/" + groupId
 		path, err := self.registePath(pubPath, hostport, zk.CreatePersistent, nil)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|PublishTopic|FAIL|%s|%s/%s\n", err, pubPath, hostport)
+			log.Errorf("ZKManager|PublishTopic|FAIL|%s|%s/%s", err, pubPath, hostport)
 			return err
 		}
-		log.InfoLog("kiteq_registry", "ZKManager|PublishTopic|SUCC|%s\n", path)
+		log.Infof("ZKManager|PublishTopic|SUCC|%s", path)
 	}
 	return nil
 }
@@ -228,7 +228,7 @@ func (self *ZKManager) PublishBindings(groupId string, bindings []*Binding) erro
 	for topic, binds := range groupBind {
 		data, err := MarshalBinds(binds)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|PublishBindings|MarshalBind|FAIL|%s|%s|%t\n", err, groupId, binds)
+			log.Errorf("ZKManager|PublishBindings|MarshalBind|FAIL|%s|%s|%t", err, groupId, binds)
 			return err
 		}
 
@@ -238,10 +238,10 @@ func (self *ZKManager) PublishBindings(groupId string, bindings []*Binding) erro
 		//注册对应topic的groupId //注册订阅信息
 		succpath, err := self.registePath(path, groupId+"-bind", createType, data)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|PublishTopic|Bind|FAIL|%s|%s/%s\n", err, path, binds)
+			log.Errorf("ZKManager|PublishTopic|Bind|FAIL|%s|%s/%s", err, path, binds)
 			return err
 		} else {
-			log.InfoLog("kiteq_registry", "ZKManager|PublishTopic|Bind|SUCC|%s|%s\n", succpath, binds)
+			log.Infof("ZKManager|PublishTopic|Bind|SUCC|%s|%s", succpath, binds)
 		}
 	}
 	return nil
@@ -253,7 +253,7 @@ func (self *ZKManager) registePath(path string, childpath string, createType zk.
 	if nil == err {
 		err := self.innerCreatePath(path+"/"+childpath, data, createType)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|registePath|CREATE CHILD|FAIL|%s|%s\n", err, path+"/"+childpath)
+			log.Errorf("ZKManager|registePath|CREATE CHILD|FAIL|%s|%s", err, path+"/"+childpath)
 			return "", err
 		} else {
 			return path + "/" + childpath, nil
@@ -268,13 +268,13 @@ func (self *ZKManager) traverseCreatePath(path string, data []byte, createType z
 	tmppath := "/"
 	for i, v := range split {
 		tmppath += v
-		// log.Printf("ZKManager|traverseCreatePath|%s\n", tmppath)
+		// log.Printf("ZKManager|traverseCreatePath|%s", tmppath)
 		if i >= len(split)-1 {
 			break
 		}
 		err := self.innerCreatePath(tmppath, nil, zk.CreatePersistent)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|traverseCreatePath|FAIL|%s\n", err)
+			log.Errorf("ZKManager|traverseCreatePath|FAIL|%s", err)
 			return err
 		}
 		tmppath += "/"
@@ -291,7 +291,7 @@ func (self *ZKManager) innerCreatePath(tmppath string, data []byte, createType z
 	if nil == err && !exist {
 		_, err := self.session.Create(tmppath, data, createType, zk.WorldACL(zk.PermAll))
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|innerCreatePath|FAIL|%s|%s\n", err, tmppath)
+			log.Errorf("ZKManager|innerCreatePath|FAIL|%v|%s", err, tmppath)
 			return err
 		}
 
@@ -307,13 +307,13 @@ func (self *ZKManager) innerCreatePath(tmppath string, data []byte, createType z
 
 		return err
 	} else if nil != err {
-		log.ErrorLog("kiteq_registry", "ZKManager|innerCreatePath|FAIL|%s\n", err)
+		log.Errorf("ZKManager|innerCreatePath|FAIL|%s", err)
 		return err
 	} else if nil != data {
 		//存在该节点，推送新数据
 		_, err := self.session.Set(tmppath, data, -1)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|innerCreatePath|PUSH DATA|FAIL|%s|%s|%s\n", err, tmppath, string(data))
+			log.Errorf("ZKManager|innerCreatePath|PUSH DATA|FAIL|%v|%s|%s", err, tmppath, string(data))
 			return err
 		}
 	}
@@ -332,7 +332,7 @@ func (self *ZKManager) GetQServerAndWatch(topic string) ([]string, error) {
 	//获取topic下的所有qserver
 	children, _, _, err := self.session.ChildrenW(path)
 	if nil != err {
-		log.ErrorLog("kiteq_registry", "ZKManager|GetQServerAndWatch|FAIL|%s\n", path)
+		log.Errorf("ZKManager|GetQServerAndWatch|FAIL|%v|%s", err, path)
 		return nil, err
 	}
 	return children, nil
@@ -352,7 +352,7 @@ func (self *ZKManager) GetBindAndWatch(topic string) (map[string][]*Binding, err
 	//获取topic下的所有qserver
 	groupIds, _, _, err := self.session.ChildrenW(path)
 	if nil != err {
-		log.ErrorLog("kiteq_registry", "ZKManager|GetBindAndWatch|GroupID|FAIL|%s|%s\n", err, path)
+		log.Errorf("ZKManager|GetBindAndWatch|GroupID|FAIL|%v|%s", err, path)
 		return nil, err
 	}
 
@@ -362,7 +362,7 @@ func (self *ZKManager) GetBindAndWatch(topic string) (map[string][]*Binding, err
 		tmppath := path + "/" + groupId
 		binds, err := self.getBindData(tmppath)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "GetBindAndWatch|getBindData|FAIL|%s|%s\n", tmppath, err)
+			log.Errorf("GetBindAndWatch|getBindData|FAIL|%v|%s", err, tmppath)
 			continue
 		}
 
@@ -378,17 +378,17 @@ func (self *ZKManager) GetBindAndWatch(topic string) (map[string][]*Binding, err
 func (self *ZKManager) getBindData(path string) ([]*Binding, error) {
 	bindData, _, _, err := self.session.GetW(path)
 	if nil != err {
-		log.ErrorLog("kiteq_registry", "ZKManager|getBindData|Binding|FAIL|%s|%s\n", err, path)
+		log.Errorf("ZKManager|getBindData|Binding|FAIL|%v|%s", err, path)
 		return nil, err
 	}
 
-	// log.Printf("ZKManager|getBindData|Binding|SUCC|%s|%s\n", path, string(bindData))
+	// log.Printf("ZKManager|getBindData|Binding|SUCC|%s|%s", path, string(bindData))
 	if nil == bindData || len(bindData) <= 0 {
 		return []*Binding{}, nil
 	} else {
 		binding, err := UmarshalBinds(bindData)
 		if nil != err {
-			log.ErrorLog("kiteq_registry", "ZKManager|getBindData|UmarshalBind|FAIL|%s|%s|%s\n", err, path, string(bindData))
+			log.Errorf("ZKManager|getBindData|UmarshalBind|FAIL|%v|%s|%s", err, path, string(bindData))
 
 		}
 		return binding, err

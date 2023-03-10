@@ -58,7 +58,7 @@ func (self *RegistryCenter) RegisteWatcher(rootpath string, w IWatcher) bool {
 }
 
 //去除掉当前的KiteQServer
-func (self *RegistryCenter) UnpushlishQServer(hostport string, topics []string) {
+func (self *RegistryCenter) UnpublishQServer(hostport string, topics []string) {
 	self.registry.UnpushlishQServer(hostport, topics)
 }
 
