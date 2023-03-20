@@ -37,10 +37,10 @@ type Registry interface {
 	Start()
 
 	//如果返回false则已经存在
-	RegisteWatcher(rootpath string, w IWatcher) bool
+	RegisterWatcher(rootpath string, w IWatcher) bool
 
 	//去除掉当前的KiteQServer
-	UnpushlishQServer(hostport string, topics []string)
+	UnPublishQServer(hostport string, topics []string)
 
 	//发布topic对应的server
 	PublishQServer(hostport string, topics []string) error

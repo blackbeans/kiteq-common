@@ -3,6 +3,7 @@ package registry
 import (
 	"encoding/json"
 	"regexp"
+	"strings"
 )
 
 type BindType uint8
@@ -15,8 +16,20 @@ const (
 	BIND_FANOUT = BindType(2) //广播式订阅
 )
 
-//用于定义订阅关系的结构
+func TypeOfBind(str string) BindType {
+	switch strings.ToLower(str) {
+	case "direct":
+		return BIND_DIRECT
+	case "regx":
+		return BIND_REGX
+	case "fanout":
+		return BIND_FANOUT
+	default:
+		return BIND_DIRECT
+	}
+}
 
+//用于定义订阅关系的结构
 type Binding struct {
 	GroupId     string   `json:"groupId"`     //订阅的分组名称
 	Topic       string   `json:"topic"`       //订阅的topic

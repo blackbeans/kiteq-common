@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"strings"
 )
 
@@ -10,35 +11,35 @@ type RegistryCenter struct {
 
 //uri:
 //	zk://localhost:2181,localhost:2181?timeout=50s
-//  ectd://localhost:2181,localhost:2181?timeout=50s
-func NewRegistryCenter(uri string) *RegistryCenter {
+//  file://./conf/registry_demo.yaml
+
+func NewRegistryCenter(parent context.Context, uri string) *RegistryCenter {
 	var registry Registry
 	startIdx := strings.Index(uri, "://")
 	schema := uri[0:startIdx]
-	p := strings.Split(uri[startIdx+3:], "?")
-	hosts := p[0]
-	if len(p) > 1 {
-		data := strings.Split(p[1], "&")
-		params := make(map[string]string, len(data)+1)
-		for _, v := range data {
-			p := strings.SplitN(v, "=", 2)
-			if len(p) >= 2 {
-				params[p[0]] = p[1]
-			}
-		}
-	}
 
 	//zk
 	if "zk" == schema {
+		p := strings.Split(uri[startIdx+3:], "?")
+		hosts := p[0]
+		if len(p) > 1 {
+			data := strings.Split(p[1], "&")
+			params := make(map[string]string, len(data)+1)
+			for _, v := range data {
+				p := strings.SplitN(v, "=", 2)
+				if len(p) >= 2 {
+					params[p[0]] = p[1]
+				}
+			}
+		}
+
 		if len(hosts) > 0 {
 			registry = NewZKManager(hosts)
 		}
 
-	} else if "etcd" == schema {
-		//etcd
-		//if len(hosts) > 0 {
-		//	registry = NewEtcdRegistry(hosts)
-		//}
+	} else if "file" == schema {
+		//本地文件配置
+		registry = NewFileRegistry(parent, strings.TrimPrefix(uri, "file://"))
 
 	} else {
 		panic("Unsupport Registry [" + uri + "]")
@@ -53,13 +54,13 @@ func NewRegistryCenter(uri string) *RegistryCenter {
 }
 
 //如果返回false则已经存在
-func (self *RegistryCenter) RegisteWatcher(rootpath string, w IWatcher) bool {
-	return self.registry.RegisteWatcher(rootpath, w)
+func (self *RegistryCenter) RegisterWatcher(rootpath string, w IWatcher) bool {
+	return self.registry.RegisterWatcher(rootpath, w)
 }
 
 //去除掉当前的KiteQServer
-func (self *RegistryCenter) UnpublishQServer(hostport string, topics []string) {
-	self.registry.UnpushlishQServer(hostport, topics)
+func (self *RegistryCenter) UnPublishQServer(hostport string, topics []string) {
+	self.registry.UnPublishQServer(hostport, topics)
 }
 
 //发布topic对应的server
