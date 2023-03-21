@@ -8,7 +8,7 @@ import (
 func TestZkPublishQServer(t *testing.T) {
 	zkmanager := NewZKManager("localhost:2181")
 	zkmanager.Start()
-	zkmanager.RegisterWatcher("/kiteq", &MockWatcher{})
+	zkmanager.RegisterWatcher(&MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
 	topics := []string{"trade", "feed", "comment"}
@@ -67,7 +67,7 @@ func TestZkPublishTopic(t *testing.T) {
 	topics := []string{"trade", "feed", "comment"}
 	zkmanager := NewZKManager("localhost:2181")
 	zkmanager.Start()
-	zkmanager.RegisterWatcher("/kiteq", &MockWatcher{})
+	zkmanager.RegisterWatcher(&MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
 	err := zkmanager.PublishTopics(topics, "p-trade-a", "localhost:2181")
@@ -85,7 +85,7 @@ func TestZkSubscribeTopic(t *testing.T) {
 
 	zkmanager := NewZKManager("localhost:2181")
 	zkmanager.Start()
-	zkmanager.RegisterWatcher("/kiteq", &MockWatcher{})
+	zkmanager.RegisterWatcher(&MockWatcher{})
 	cleanUp(t, zkmanager, "/kiteq")
 
 	persistentBind := []*Binding{Bind_Direct("s-trade-g", "trade", "trade-succ", -1, true)}

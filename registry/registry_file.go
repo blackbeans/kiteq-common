@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"reflect"
 	"sort"
 	"time"
 )
@@ -39,11 +40,12 @@ type FileRegistry struct {
 	cancel       context.CancelFunc
 	path         string
 	registryInfo FileRegistryInfo
+	watchers     []IWatcher //监听变化的
 }
 
 func NewFileRegistry(parent context.Context, path string) *FileRegistry {
 	ctx, cancel := context.WithCancel(parent)
-	return &FileRegistry{ctx: ctx, cancel: cancel, path: path}
+	return &FileRegistry{ctx: ctx, cancel: cancel, path: path, watchers: make([]IWatcher, 0, 10)}
 }
 
 func (f *FileRegistry) Start() {
@@ -87,13 +89,43 @@ func (f *FileRegistry) reloadBrokers() {
 		}
 		uniqBrokers[broker.Address] = nil
 	}
+
+	//是否数值一样
+	if !reflect.DeepEqual(f.registryInfo, registryInfo) {
+		f.notifyWatcher(registryInfo)
+	}
+
 	//当前加载broker配置
 	f.registryInfo = registryInfo
 	log.Infof("FileRegistry|Brokers:%v", f.registryInfo)
 }
 
-func (f *FileRegistry) RegisterWatcher(rootpath string, w IWatcher) bool {
-	//TODO 是否要做监听准备
+//是否新增了watcher
+func (f *FileRegistry) notifyWatcher(newInfo FileRegistryInfo) {
+
+	groupTopicBinds := make(map[string][]*Binding, 0)
+	for _, bind := range newInfo.Bindings {
+		for _, gid := range bind.GroupIds {
+			v, ok := groupTopicBinds[bind.Topic+"_"+gid]
+			if !ok {
+				v = make([]*Binding, 0, 2)
+			}
+			groupTopicBinds[bind.Topic+"_"+gid] = append(v, binding(gid, bind.Topic, bind.MessageType, TypeOfBind(bind.BindType), int32(bind.Watermark), bind.Persistent))
+		}
+
+	}
+
+	for _, w := range f.watchers {
+		for gid, binds := range groupTopicBinds {
+			w.OnBindChanged(binds[0].Topic, gid, binds)
+		}
+	}
+
+	//集群变更
+}
+
+func (f *FileRegistry) RegisterWatcher(w IWatcher) bool {
+	f.watchers = append(f.watchers, w)
 	return true
 }
 

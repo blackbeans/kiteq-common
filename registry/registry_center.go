@@ -54,8 +54,8 @@ func NewRegistryCenter(parent context.Context, uri string) *RegistryCenter {
 }
 
 //如果返回false则已经存在
-func (self *RegistryCenter) RegisterWatcher(rootpath string, w IWatcher) bool {
-	return self.registry.RegisterWatcher(rootpath, w)
+func (self *RegistryCenter) RegisterWatcher(w IWatcher) bool {
+	return self.registry.RegisterWatcher(w)
 }
 
 //去除掉当前的KiteQServer
