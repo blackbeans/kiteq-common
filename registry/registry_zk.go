@@ -378,61 +378,6 @@ func (z *ZKManager) Close() {
 	z.session.Close()
 }
 
-//订阅关系topic下的group发生变更
-func (z *ZKManager) NodeChange(path string, eventType RegistryEvent, childNode []string) {
-
-	//如果是订阅关系变更则处理
-	if strings.HasPrefix(path, KITEQ_SUB) {
-		//获取topic
-		split := strings.Split(path, "/")
-		if len(split) < 4 {
-			if eventType == Created {
-				//不合法的订阅璐姐
-				log.Errorf("ZKManager|NodeChange|INVALID SUB PATH |%s|%t", path, childNode)
-			}
-			return
-		}
-		//获取topic
-		topic := split[3]
-
-		//如果topic下无订阅分组节点，直接删除该topic
-		if len(childNode) <= 0 {
-			for _, w := range z.watchers {
-				w.OnBindChanged(topic, "", nil)
-			}
-			log.Errorf("ZKManager|NodeChange|无子节点|%s|%s", path, childNode)
-			return
-		}
-
-		// //对当前的topic的分组进行重新设置
-		switch eventType {
-		case Created, Child:
-
-			bm, err := z.GetBindAndWatch(topic)
-			if nil != err {
-				log.Errorf("ZKManager|NodeChange|获取订阅关系失败|%s|%s", path, childNode)
-			}
-
-			//如果topic下没有订阅关系分组则青琉璃
-			if len(bm) > 0 {
-				for groupId, bs := range bm {
-					for _, w := range z.watchers {
-						w.OnBindChanged(topic, groupId, bs)
-					}
-				}
-			} else {
-				//删除具体某个分组
-				for _, w := range z.watchers {
-					w.OnBindChanged(topic, "", nil)
-				}
-			}
-		}
-
-	} else {
-		// log.Warn("BindExchanger|NodeChange|非SUB节点变更|%s|%s", path, childNode)
-	}
-}
-
 //数据变更
 func (z *ZKManager) DataChange(path string, binds []*Binding) {
 
@@ -452,4 +397,80 @@ func (z *ZKManager) DataChange(path string, binds []*Binding) {
 		log.Warnf("ZKManager|DataChange|非SUB节点变更|%s", path)
 	}
 
+}
+
+//订阅关系topic下的group发生变更
+func (z *ZKManager) NodeChange(path string, eventType RegistryEvent, childNode []string) {
+	//如果是订阅关系变更则处理
+	if strings.HasPrefix(path, KITEQ_SUB) {
+		z.onSubChanged(path, eventType, childNode)
+	} else if strings.HasPrefix(path, KITEQ_SERVER) {
+		z.onQServerChanged(path, eventType, childNode)
+	}
+}
+
+func (z *ZKManager) onSubChanged(path string, eventType RegistryEvent, childNode []string) {
+	//如果是订阅关系变更则处理
+	//获取topic
+	split := strings.Split(path, "/")
+	if len(split) < 4 {
+		if eventType == Created {
+			//不合法的订阅璐姐
+			log.Errorf("ZKManager|NodeChange|INVALID SUB PATH |%s|%t", path, childNode)
+		}
+		return
+	}
+	//获取topic
+	topic := split[3]
+
+	//如果topic下无订阅分组节点，直接删除该topic
+	if len(childNode) <= 0 {
+		for _, w := range z.watchers {
+			w.OnBindChanged(topic, "", nil)
+		}
+		log.Errorf("ZKManager|NodeChange|无子节点|%s|%s", path, childNode)
+		return
+	}
+
+	// //对当前的topic的分组进行重新设置
+	switch eventType {
+	case Created, Child:
+
+		bm, err := z.GetBindAndWatch(topic)
+		if nil != err {
+			log.Errorf("ZKManager|NodeChange|获取订阅关系失败|%s|%s", path, childNode)
+		}
+
+		//如果topic下没有订阅关系分组则青琉璃
+		if len(bm) > 0 {
+			for groupId, bs := range bm {
+				for _, w := range z.watchers {
+					w.OnBindChanged(topic, groupId, bs)
+				}
+			}
+		} else {
+			//删除具体某个分组
+			for _, w := range z.watchers {
+				w.OnBindChanged(topic, "", nil)
+			}
+		}
+	}
+
+}
+
+func (z *ZKManager) onQServerChanged(path string, eventType RegistryEvent, childNode []string) {
+	//获取topic
+	split := strings.Split(path, "/")
+	if len(split) < 4 {
+		//不合法的订阅璐姐
+		log.Warnf("kite|ChildWatcher|INVALID SERVER PATH |%s|%v", path, childNode)
+		return
+	}
+	//获取topic
+	topic := split[3]
+	log.Warnf("kite|ChildWatcher|Change|%s|%v|%v", path, childNode, eventType)
+	//search topic
+	for _, w := range z.watchers {
+		w.OnQServerChanged(topic, childNode)
+	}
 }

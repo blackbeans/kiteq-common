@@ -112,16 +112,29 @@ func (f *FileRegistry) notifyWatcher(newInfo FileRegistryInfo) {
 			}
 			groupTopicBinds[bind.Topic+"_"+gid] = append(v, binding(gid, bind.Topic, bind.MessageType, TypeOfBind(bind.BindType), int32(bind.Watermark), bind.Persistent))
 		}
+	}
 
+	topic2Hosts := make(map[string][]string, 1)
+	for _, broker := range newInfo.Brokers {
+		for _, topic := range broker.Topics {
+			v, ok := topic2Hosts[topic]
+			if !ok {
+				v = make([]string, 0, 2)
+			}
+			topic2Hosts[topic] = append(v, broker.Address)
+		}
 	}
 
 	for _, w := range f.watchers {
 		for gid, binds := range groupTopicBinds {
 			w.OnBindChanged(binds[0].Topic, gid, binds)
 		}
+
+		for topic, hosts := range topic2Hosts {
+			w.OnQServerChanged(topic, hosts)
+		}
 	}
 
-	//集群变更
 }
 
 func (f *FileRegistry) RegisterWatcher(w IWatcher) bool {
