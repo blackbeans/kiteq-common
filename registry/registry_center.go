@@ -2,8 +2,11 @@ package registry
 
 import (
 	"context"
+	"github.com/blackbeans/logx"
 	"strings"
 )
+
+var log = logx.GetLogger("kiteq_registry")
 
 type RegistryCenter struct {
 	registry Registry

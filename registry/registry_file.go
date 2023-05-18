@@ -2,7 +2,6 @@ package registry
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"reflect"

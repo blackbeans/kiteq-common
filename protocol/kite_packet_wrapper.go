@@ -1,9 +1,11 @@
 package protocol
 
 import (
+	"github.com/blackbeans/logx"
 	"github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
 )
+
+var log = logx.GetLogger("stderr")
 
 type QMessage struct {
 	message proto.Message
